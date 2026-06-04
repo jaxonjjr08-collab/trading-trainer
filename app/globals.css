@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * v2.6 — Dual-mode theme tokens, now (v6.0) a five-theme system. The values
+ * live as CSS variables so a single `data-theme` attribute on <html> flips
+ * the entire app. Tailwind's theme.colors point at these variables (see
+ * tailwind.config.ts), so every existing `bg-bg`, `text-text`, `border-line`
+ * etc class adapts automatically without component-level changes.
+ *
+ * Default is `leather` (warm dark). The `app/layout.tsx` boot script sets
+ * data-theme from localStorage before paint so there's no FOUC, and migrates
+ * the legacy "dark"/"light" values to "leather"/"parchment".
+ *
+ * v6.0 — "Editorial Instrument" type system. Three font roles come in as CSS
+ * variables from next/font (see app/layout.tsx): --font-display (Fraunces),
+ * --font-sans (Hanken Grotesk), --font-mono (IBM Plex Mono).
+ */
+
+:root,
+[data-theme="leather"] {
+  /* Leather — warm dark, reads like a leather-bound journal. (was "dark") */
+  --bg: #0f0e12;
+  --panel: #1a1820;
+  --panel2: #25222d;
+  --line: #38343f;
+  --text: #ece9f2;
+  --muted: #9c95a8;
+  --accent: #d4a574;   /* warm gold/amber */
+  --good: #5fb97a;
+  --bad: #e07171;
+  --warn: #e0a86d;
+  --grain: 0.025;       /* paper-grain opacity for this theme */
+  color-scheme: dark;
+}
+
+[data-theme="parchment"] {
+  /* Parchment — warm off-white, never pure white. (was "light") */
+  --bg: #faf8f4;
+  --panel: #ffffff;
+  --panel2: #f4f1eb;
+  --line: #e5dfd3;
+  --text: #1a1820;
+  --muted: #6b6573;
+  --accent: #b88550;   /* deeper amber, holds contrast on white */
+  --good: #3d9e58;
+  --bad: #c25555;
+  --warn: #b88550;
+  --grain: 0.02;
+  color-scheme: light;
+}
+
+[data-theme="terminal"] {
+  /* Terminal — phosphor amber/green on true near-black. Instrument homage. */
+  --bg: #050706;
+  --panel: #0b0f0c;
+  --panel2: #111714;
+  --line: #1f2a22;
+  --text: #d6f5dc;       /* soft phosphor green-white */
+  --muted: #6e8a76;
+  --accent: #ffb000;     /* amber CRT */
+  --good: #39d353;
+  --bad: #ff5f56;
+  --warn: #ffb000;
+  --grain: 0.04;
+  color-scheme: dark;
+}
+
+[data-theme="slate"] {
+  /* Slate — cool neutral dark for users who want less warmth. */
+  --bg: #0c0e12;
+  --panel: #161922;
+  --panel2: #1f232e;
+  --line: #2c3140;
+  --text: #e7eaf1;
+  --muted: #8b91a3;
+  --accent: #7aa2f7;     /* cool periwinkle */
+  --good: #6bcf8e;
+  --bad: #e06c75;
+  --warn: #e5b06a;
+  --grain: 0.02;
+  color-scheme: dark;
+}
+
+[data-theme="contrast"] {
+  /* High Contrast — a11y. Near-black on near-white-text, strong accent. */
+  --bg: #000000;
+  --panel: #0a0a0a;
+  --panel2: #161616;
+  --line: #3a3a3a;
+  --text: #ffffff;
+  --muted: #c2c2c2;
+  --accent: #ffcc33;
+  --good: #36e06a;
+  --bad: #ff5c5c;
+  --warn: #ffcc33;
+  --grain: 0;
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-text;
+  /* v6.0 — Hanken Grotesk for UI, with a robust system fallback. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  /* Smooth the theme flip when the user switches. Per-property to avoid the
+     jelly-effect of `transition: all`. */
+  transition: background-color 200ms ease, color 200ms ease;
+  position: relative;
+}
+
+/* v6.0 — faint paper grain on the background for tactile depth. Pure CSS
+   (an SVG fractal-noise data-URI), fixed, non-interactive, opacity driven by
+   the theme's --grain token so each theme tunes it (0 disables it). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grain, 0);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Keep app chrome above the grain. */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* v6.0 — display serif for headings by default. Components can override, but
+   h1/h2/h3 read as editorial out of the box. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  letter-spacing: -0.01em;
+}
+
+input,
+textarea,
+select {
+  @apply bg-panel2 border border-line rounded-md px-2 py-1 text-text;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none ring-1 ring-accent border-accent;
+}
+
+button {
+  @apply rounded-md;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+/* v6.0 — craft layer: custom focus ring + scrollbar so the whole app feels
+   considered, not stock. */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: content-box;
+}
+
+/* v6.0 — utility classes for the type system. */
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+}
+.font-mono,
+.tab-nums {
+  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+/* A thin editorial hairline used in place of bordered cards. */
+.rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* Respect reduced-motion globally — components also guard individually. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

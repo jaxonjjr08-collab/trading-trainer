@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+.DS_Store
+*.log
+.env*.local
+
+# Build + tooling artifacts
+tsconfig.tsbuildinfo
+.vercel/
+.playwright-mcp/
+
+# Dev screenshots generated during UI work (not app assets)
+v6-*.png
+pt-*.png
+picker*.png
+logos.png
+tv-search.png
