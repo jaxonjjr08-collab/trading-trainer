@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 // Newest first. Used by the version-badge modal in app/layout.tsx.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.9.3",
+    date: "2026-06-04",
+    title: "Fix: Super Guppy colours now follow the obvious control",
+    highlights: [
+      "The Super Guppy ribbon's colour palette (Green/Red vs Blue/Orange) was controlled only by a buried toggle in Settings → Chart colors. After v6.0 added a prominent theme picker to the header, switching that — the obvious colour control — didn't touch the ribbon, so it appeared 'stuck in orange.'",
+      "The trend-colour toggle now lives in the header theme picker too, under 'Chart trend colours.' Switching it repaints any open Super Guppy ribbon live, no reload — verified end to end (a bear ribbon flips from orange #ea580c to red #dc2626 the instant you switch). The Settings toggle still works for those who prefer it.",
+      "The underlying repaint logic was never broken; this was purely a discoverability problem — the control that changes chart colours now sits where you look for colours.",
+    ],
+  },
+  {
     version: "5.9.2",
     date: "2026-06-04",
     title: "v6.0 redesign, phase 3 — borderless editorial dashboard",

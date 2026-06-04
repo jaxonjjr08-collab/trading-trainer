@@ -4,6 +4,11 @@
 // v6.0 — grew from a binary sun/moon toggle into a theme PICKER: a small
 // popover menu listing the five named themes, each with a color swatch and
 // a one-line character blurb. Selecting one persists + applies + broadcasts.
+// v5.9.3 — the popover also hosts the chart trend-colour toggle (Standard
+// green/red vs Colourblind blue/orange). Previously this lived only in
+// Settings, so users switching the prominent header theme expected the
+// Super Guppy ribbon to follow and were confused when it stayed put. Now
+// the control that affects chart colours lives where you look for colours.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,9 +19,17 @@ import {
   themeMeta,
   type ThemeId,
 } from "@/lib/theme";
+import { getColorMode, setColorMode } from "@/lib/storage";
+import {
+  COLOR_MODES,
+  COLOR_MODE_LABELS,
+  paletteFor,
+  type ColorMode,
+} from "@/lib/color-mode";
 
 export default function ThemeToggle() {
   const [theme, setThemeState] = useState<ThemeId>("leather");
+  const [colorMode, setColorModeState] = useState<ColorMode>("colorblind");
   const [hydrated, setHydrated] = useState(false);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -25,8 +38,17 @@ export default function ThemeToggle() {
     const current = getTheme();
     setThemeState(current);
     applyTheme(current);
+    setColorModeState(getColorMode());
     setHydrated(true);
   }, []);
+
+  // v5.9.3 — switch the chart trend palette. setColorMode persists + fires
+  // 'trainer:color-mode-change', which any mounted Chart listens for and
+  // repaints the Super Guppy ribbon live (no reload needed).
+  function pickColorMode(mode: ColorMode) {
+    setColorMode(mode);
+    setColorModeState(mode);
+  }
 
   // Close on outside-click + Escape.
   useEffect(() => {
@@ -138,6 +160,59 @@ export default function ThemeToggle() {
               </button>
             );
           })}
+
+          {/* v5.9.3 — chart trend-colour toggle. Drives the Super Guppy
+              ribbon + other trend-coloured tools. Updates any open chart
+              live. Lives here so the obvious colour control governs chart
+              colours too. */}
+          <div className="mt-1 border-t border-line pt-2">
+            <div className="px-2 pb-1.5 text-[10px] uppercase tracking-widest text-muted">
+              Chart trend colours
+            </div>
+            <div className="px-1.5 grid grid-cols-2 gap-1.5">
+              {COLOR_MODES.map((m) => {
+                const active = m === colorMode;
+                const bull = paletteFor(m, "bull").representative;
+                const bear = paletteFor(m, "bear").representative;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => pickColorMode(m)}
+                    title={COLOR_MODE_LABELS[m]}
+                    className={`flex items-center gap-2 rounded-md border px-2 py-1.5 transition-colors ${
+                      active
+                        ? "border-accent/60 bg-accent/10"
+                        : "border-line hover:bg-panel2"
+                    }`}
+                  >
+                    <span className="flex shrink-0" aria-hidden>
+                      <span
+                        className="h-3.5 w-3.5 rounded-full"
+                        style={{ background: bull }}
+                      />
+                      <span
+                        className="h-3.5 w-3.5 rounded-full -ml-1.5"
+                        style={{ background: bear }}
+                      />
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        active ? "text-accent" : "text-text"
+                      }`}
+                    >
+                      {m === "standard" ? "Green / Red" : "Blue / Orange"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="px-2 pt-1.5 text-[10px] text-muted leading-snug">
+              Used by the Super Guppy ribbon and other trend tools.
+            </p>
+          </div>
         </div>
       )}
     </div>
