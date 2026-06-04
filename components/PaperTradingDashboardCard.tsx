@@ -1,7 +1,11 @@
 "use client";
 
-// v5.0 — Dashboard entry card for live paper trading. Mirrors the
-// PortfolioDashboardCard pattern: status header, click-through to /paper-trading.
+// v5.0 — Dashboard entry for live paper trading.
+// v6.0 (phase 3) — reworked from a bordered card into a borderless editorial
+// row: display-serif title, hover tint instead of a border box, inline mono
+// stats. Borders are reserved for inputs/charts/callouts; an entry link is
+// none of those, so it reads as type + space. The parent groups it with the
+// portfolio row under a hairline-divided "Surfaces" section in app/page.tsx.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -19,75 +23,57 @@ export default function PaperTradingDashboardCard() {
     setHydrated(true);
   }, []);
 
-  if (!hydrated) {
-    return (
-      <div className="rounded-md border border-line bg-panel p-4 text-xs text-muted">
-        Loading paper trading…
-      </div>
-    );
-  }
-
   const total = session ? totalSessionPnl(session) : 0;
   const openRisk = session ? totalRiskPercent(session, true) : 0;
   const openCount = session
     ? session.positions.filter((p) => p.status === "open").length
     : 0;
   const symbol = session?.symbols[0]?.symbol ?? "";
+  const isActive = session != null && session.status !== "ended";
 
   return (
     <Link
       href="/paper-trading"
-      className="block rounded-md border border-line bg-panel p-4 hover:border-accent/60 transition-colors"
+      className="group block py-4 -mx-3 px-3 rounded-lg hover:bg-panel/60 transition-colors"
     >
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">Live Paper Trading</h2>
-        <span className="text-xs text-accent">Open →</span>
-      </header>
-      <p className="text-xs text-muted mt-0.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-xl font-semibold leading-tight group-hover:text-accent transition-colors">
+          Live Paper Trading
+          {isActive && (
+            <span className="ml-2 align-middle text-[10px] font-sans font-bold uppercase tracking-wider text-good">
+              ● Live
+            </span>
+          )}
+        </h3>
+        <span className="shrink-0 text-xs text-muted group-hover:text-accent transition-colors">
+          Open →
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-muted max-w-xl leading-relaxed">
         Real Coinbase prices, paper money. Open positions and watch them tick on
         the live chart.
       </p>
-      {session == null ? (
-        <p className="mt-3 text-xs text-muted italic">No active session.</p>
-      ) : session.status === "ended" ? (
-        <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Last session
-            </div>
-            <div className="font-mono">Ended — {symbol}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Final P&amp;L
-            </div>
-            <div className={`font-mono ${total >= 0 ? "text-good" : "text-bad"}`}>
-              {total >= 0 ? "+" : ""}
-              {total.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 grid grid-cols-4 gap-3 text-xs">
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">Symbol</div>
-            <div className="font-mono">{symbol}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">Open</div>
-            <div className="font-mono">{openCount}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">Risk</div>
-            <div className="font-mono">{openRisk.toFixed(1)}%</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">PnL</div>
-            <div className={`font-mono ${total >= 0 ? "text-good" : "text-bad"}`}>
-              {total >= 0 ? "+" : ""}
-              {total.toFixed(2)}%
-            </div>
-          </div>
+      {hydrated && session != null && (
+        <div className="mt-2 font-mono text-xs text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+          {session.status === "ended" ? (
+            <>
+              <span>Ended · {symbol}</span>
+              <span className={total >= 0 ? "text-good" : "text-bad"}>
+                {total >= 0 ? "+" : ""}
+                {total.toFixed(2)}%
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-text">{symbol}</span>
+              <span>· {openCount} open</span>
+              <span>· {openRisk.toFixed(1)}% risk</span>
+              <span className={total >= 0 ? "text-good" : "text-bad"}>
+                · {total >= 0 ? "+" : ""}
+                {total.toFixed(2)}%
+              </span>
+            </>
+          )}
         </div>
       )}
     </Link>

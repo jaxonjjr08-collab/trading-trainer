@@ -2,22 +2,27 @@ import DashboardStats from "@/components/DashboardStats";
 import PortfolioDashboardCard from "@/components/PortfolioDashboardCard";
 import PaperTradingDashboardCard from "@/components/PaperTradingDashboardCard";
 
+// v6.0 (phase 3) — borderless editorial dashboard. The old generic
+// "Dashboard" h1 + lede was removed: it competed with GreetingBand (inside
+// DashboardStats), which is the real masthead — a personalised hero with the
+// mascot and score sparkline. The two entry surfaces (portfolio + live) now
+// sit in a hairline-divided "Trading surfaces" section instead of two
+// bordered cards, so the whole page reads as one editorial column.
+
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted text-sm">
-          Your decision quality over time. The score reflects the trade you took — not whether it made money.
-        </p>
-      </div>
+    <div className="space-y-10">
       <DashboardStats />
-      {/* v4.1 — entry point to the portfolio simulator. Lives on Dashboard
-          per the roadmap; clicking through opens /portfolio. */}
-      <PortfolioDashboardCard />
-      {/* v5.0 — entry point to live paper trading. Same dashboard slot,
-          sits below the portfolio sim. */}
-      <PaperTradingDashboardCard />
+
+      <section>
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.18em] text-muted">
+          Trading surfaces
+        </h2>
+        <div className="mt-2 border-t border-line divide-y divide-line">
+          <PortfolioDashboardCard />
+          <PaperTradingDashboardCard />
+        </div>
+      </section>
     </div>
   );
 }

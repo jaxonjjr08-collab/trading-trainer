@@ -1,9 +1,8 @@
 "use client";
 
-// v4.1 — Dashboard entry card for the portfolio simulator. Shows session
-// status (none / active / ended) and links to /portfolio. Keeps the
-// Dashboard surface from sprawling — the actual simulator UI lives on its
-// own route, this card is just the door.
+// v4.1 — Dashboard entry for the portfolio simulator.
+// v6.0 (phase 3) — borderless editorial row (matches PaperTradingDashboardCard):
+// display-serif title, hover tint instead of a border box, inline mono stats.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -20,80 +19,55 @@ export default function PortfolioDashboardCard() {
     setHydrated(true);
   }, []);
 
-  if (!hydrated) {
-    return (
-      <div className="rounded-md border border-line bg-panel p-4 text-xs text-muted">
-        Loading portfolio…
-      </div>
-    );
-  }
-
   const total = session ? totalSessionPnl(session) : 0;
   const openRisk = session ? totalRiskPercent(session, true) : 0;
   const openCount = session
     ? session.positions.filter((p) => p.status === "open").length
     : 0;
+  const isActive = session != null && session.status !== "ended";
 
   return (
     <Link
       href="/portfolio"
-      className="block rounded-md border border-line bg-panel p-4 hover:border-accent/60 transition-colors"
+      className="group block py-4 -mx-3 px-3 rounded-lg hover:bg-panel/60 transition-colors"
     >
-      <header className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">Portfolio simulator</h2>
-        <span className="text-xs text-accent">Open →</span>
-      </header>
-      <p className="text-xs text-muted mt-0.5">
-        Run a 7-day window with 5 symbols. Open concurrent positions, learn
-        what correlation costs you.
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="font-display text-xl font-semibold leading-tight group-hover:text-accent transition-colors">
+          Portfolio Simulator
+          {isActive && (
+            <span className="ml-2 align-middle text-[10px] font-sans font-bold uppercase tracking-wider text-accent">
+              ● Active
+            </span>
+          )}
+        </h3>
+        <span className="shrink-0 text-xs text-muted group-hover:text-accent transition-colors">
+          Open →
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-muted max-w-xl leading-relaxed">
+        Run a 7-day window across 5 symbols. Open concurrent positions and learn
+        what correlation actually costs you.
       </p>
-      {session == null ? (
-        <p className="mt-3 text-xs text-muted italic">No active session.</p>
-      ) : session.status === "ended" ? (
-        <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Last session
-            </div>
-            <div className="font-mono">Ended — review the score</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Final P&amp;L
-            </div>
-            <div
-              className={`font-mono ${total >= 0 ? "text-good" : "text-bad"}`}
-            >
-              {total >= 0 ? "+" : ""}
-              {total.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Open
-            </div>
-            <div className="font-mono">{openCount}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Risk
-            </div>
-            <div className="font-mono">{openRisk.toFixed(1)}%</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              PnL
-            </div>
-            <div
-              className={`font-mono ${total >= 0 ? "text-good" : "text-bad"}`}
-            >
-              {total >= 0 ? "+" : ""}
-              {total.toFixed(2)}%
-            </div>
-          </div>
+      {hydrated && session != null && (
+        <div className="mt-2 font-mono text-xs text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+          {session.status === "ended" ? (
+            <>
+              <span>Ended · review the score</span>
+              <span className={total >= 0 ? "text-good" : "text-bad"}>
+                {total >= 0 ? "+" : ""}
+                {total.toFixed(2)}%
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-text">{openCount} open</span>
+              <span>· {openRisk.toFixed(1)}% risk</span>
+              <span className={total >= 0 ? "text-good" : "text-bad"}>
+                · {total >= 0 ? "+" : ""}
+                {total.toFixed(2)}%
+              </span>
+            </>
+          )}
         </div>
       )}
     </Link>

@@ -90,8 +90,8 @@ export default function TodaysPlan({ attempts }: Props) {
               href={c.href}
               className={`group rounded-xl p-4 transition-colors ${
                 done
-                  ? "bg-accent/10 border border-accent/30"
-                  : "bg-panel2/60 border border-line/40 hover:bg-panel2"
+                  ? "bg-accent/10"
+                  : "bg-panel2/50 hover:bg-panel2"
               }`}
             >
               <div className="flex items-start justify-between gap-2">

@@ -8,6 +8,17 @@ export type ChangelogEntry = {
 // Newest first. Used by the version-badge modal in app/layout.tsx.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.9.2",
+    date: "2026-06-04",
+    title: "v6.0 redesign, phase 3 — borderless editorial dashboard",
+    highlights: [
+      "The Dashboard now reads as one editorial column instead of a grid of bordered cards. The generic 'Dashboard' heading is gone — the personalised greeting hero (mascot + 'Where you left off.' in the display serif + your score sparkline) is the real masthead.",
+      "The two entry surfaces — Portfolio Simulator and Live Paper Trading — became borderless rows under a hairline-divided 'Trading surfaces' section: display-serif titles, a hover tint instead of a box outline, live session stats inline in monospace, and a status dot when a session is active.",
+      "The 'Today' progress (lesson / quiz / attempts) shed its border boxes too — now subtle tinted blocks where the fill and the completion ring carry the meaning, per the trainer's stated 'borderless hierarchy' principle (borders reserved for inputs, charts, and intentional callouts).",
+      "Phase 3 of the 'Editorial Instrument' overhaul. Next: purposeful motion (rolling number tickers, route transitions, mascot reactions), then propagating the borderless language to every remaining surface for the v6.0.0 milestone.",
+    ],
+  },
+  {
     version: "5.9.1",
     date: "2026-06-04",
     title: "v6.0 redesign, phase 2 — ⌘K command palette",
