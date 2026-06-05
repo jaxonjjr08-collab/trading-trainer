@@ -11,8 +11,16 @@
 // system) cost ~10% of the initial call.
 
 import { CHART_TOOL_LABELS, type Attempt, type ChartToolId, type Decision, type Scenario } from "./types";
-import type { AiModel } from "./storage";
-import { getAiKey, getAiModel, DEFAULT_AI_MODEL } from "./storage";
+import type { AiModel, OpenAiModel } from "./storage";
+import {
+  getAiKey,
+  getAiModel,
+  DEFAULT_AI_MODEL,
+  getAiProvider,
+  getOpenAiKey,
+  getOpenAiModel,
+  DEFAULT_OPENAI_MODEL,
+} from "./storage";
 import { macroContextForTime } from "./macro-context";
 import { MISTAKE_TAGS } from "./mistakes";
 
@@ -70,12 +78,19 @@ export async function* streamCompletion(
   opts: StreamCompletionOpts = {}
 ): AsyncIterable<string> {
   const transport = getTransport();
-  const model = opts.model ?? getAiModel() ?? DEFAULT_AI_MODEL;
-  const maxTokens = opts.maxTokens ?? 800;
-  const cacheSystem = opts.cacheSystem !== false;
+  const provider = getAiProvider();
 
   if (transport === "direct") {
-    yield* streamDirect(systemPrompt, messages, model, maxTokens, cacheSystem);
+    if (provider === "openai") {
+      const model = getOpenAiModel() ?? DEFAULT_OPENAI_MODEL;
+      const maxTokens = opts.maxTokens ?? 800;
+      yield* streamDirectOpenAI(systemPrompt, messages, model, maxTokens);
+    } else {
+      const model = opts.model ?? getAiModel() ?? DEFAULT_AI_MODEL;
+      const maxTokens = opts.maxTokens ?? 800;
+      const cacheSystem = opts.cacheSystem !== false;
+      yield* streamDirect(systemPrompt, messages, model, maxTokens, cacheSystem);
+    }
     return;
   }
 
@@ -176,6 +191,84 @@ async function* streamDirect(
         }
       } catch {
         // Anthropic sometimes interleaves non-JSON lines; safe to skip.
+      }
+    }
+  }
+}
+
+async function* streamDirectOpenAI(
+  systemPrompt: string,
+  messages: AIMessage[],
+  model: OpenAiModel,
+  maxTokens: number
+): AsyncIterable<string> {
+  const key = getOpenAiKey();
+  if (!key) {
+    throw new AIConfigError(
+      "No OpenAI API key configured. Open Settings → AI features to paste one."
+    );
+  }
+
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ],
+  };
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new AIApiError(0, `Network error: ${(e as Error).message}`);
+  }
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = await res.text();
+    } catch {
+      // ignore
+    }
+    throw new AIApiError(res.status, detail.slice(0, 400) || res.statusText);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new AIApiError(0, "No response body.");
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let idx;
+    while ((idx = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const dataLine = rawEvent.split("\n").find((l) => l.startsWith("data: "));
+      if (!dataLine) continue;
+      const payload = dataLine.slice(6).trim();
+      if (payload === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices?: { delta?: { content?: string } }[];
+        };
+        const chunk = parsed.choices?.[0]?.delta?.content ?? "";
+        if (chunk) yield chunk;
+      } catch {
+        // Non-JSON SSE lines; safe to skip.
       }
     }
   }
@@ -309,17 +402,19 @@ export const REVIEW_USER_PROMPT =
   "Don't restate the score. Don't moralize. Keep each paragraph to 2-3 sentences.";
 
 // Human-readable label for a model id, used in the review card badge.
-export function modelLabel(m: AiModel): string {
+export function modelLabel(m: AiModel | OpenAiModel): string {
   if (m === "claude-sonnet-4-6") return "Sonnet 4.6";
+  if (m === "gpt-4o-mini") return "GPT-4o mini";
+  if (m === "gpt-4o") return "GPT-4o";
   return "Haiku 4.5";
 }
 
 // Friendly error message from an AIApiError status.
 export function friendlyApiError(e: AIApiError): string {
   if (e.status === 401) return "Invalid API key — open Settings and re-paste it.";
-  if (e.status === 429) return "Rate-limited by Anthropic. Wait a moment and retry.";
-  if (e.status === 400) return "Bad request to the AI API. The cached system prompt may be too long.";
-  if (e.status >= 500) return "Anthropic returned a server error. Retry in a few seconds.";
+  if (e.status === 429) return "Rate-limited. Wait a moment and retry.";
+  if (e.status === 400) return "Bad request to the AI API. The system prompt may be too long.";
+  if (e.status >= 500) return "The AI provider returned a server error. Retry in a few seconds.";
   if (e.status === 0) return e.message;
   return `AI error (${e.status}): ${e.message}`;
 }

@@ -62,16 +62,19 @@ const MICRO_LESSONS_ENABLED_KEY = "trainer.microLessons.v1";
 // Practice page replaces the decision form with the walkthrough and forces
 // the scenario to tc-sol-2024-10.
 const WATCH_ME_DONE_KEY = "trainer.watchMeDone.v1";
-// v2.5 — AI features (BYOK Anthropic). All off by default; the practice page
+// v2.5 — AI features (BYOK). All off by default; the practice page
 // only fires API calls when isAiEnabled() AND hasAiConsent() AND a key is
 // present. Caches per-attempt review text and chat threads so revisiting
-// the journal doesn't re-bill.
+// the journal doesn't re-bill. Supports Anthropic and OpenAI providers.
 const AI_ENABLED_KEY = "trainer.aiEnabled.v1";
 const AI_KEY_KEY = "trainer.aiKey.v1";
 const AI_MODEL_KEY = "trainer.aiModel.v1";
 const AI_CONSENT_AT_KEY = "trainer.aiConsentAt.v1";
 const AI_REVIEW_KEY = "trainer.aiReview.v1";
 const AI_CHAT_KEY = "trainer.aiChat.v1";
+const AI_PROVIDER_KEY = "trainer.aiProvider.v1";
+const OPENAI_KEY_KEY = "trainer.openaiKey.v1";
+const OPENAI_MODEL_KEY = "trainer.openaiModel.v1";
 // v2.9 — User-set defaults that prefill new attempts. Removes the friction of
 // re-entering risk %, leverage, and account size on every scenario. Falls back
 // to the historic in-form defaults (1% / 3× / $1,000) when unset.
@@ -144,6 +147,9 @@ const ALL_KEYS = [
   AI_CONSENT_AT_KEY,
   AI_REVIEW_KEY,
   AI_CHAT_KEY,
+  AI_PROVIDER_KEY,
+  OPENAI_KEY_KEY,
+  OPENAI_MODEL_KEY,
   DEFAULTS_KEY,
   SCENARIOS_SEEN_AT_KEY,
   INDICATORS_KEY,
@@ -481,8 +487,14 @@ export function clearWatchMeDone(): void {
 
 // ─── v2.5: AI features (BYOK) ─────────────────────────────────────────────────
 
+export type AiProvider = "anthropic" | "openai";
+export const DEFAULT_AI_PROVIDER: AiProvider = "anthropic";
+
 export type AiModel = "claude-haiku-4-5-20251001" | "claude-sonnet-4-6";
 export const DEFAULT_AI_MODEL: AiModel = "claude-haiku-4-5-20251001";
+
+export type OpenAiModel = "gpt-4o-mini" | "gpt-4o";
+export const DEFAULT_OPENAI_MODEL: OpenAiModel = "gpt-4o-mini";
 
 export type AiCachedReview = {
   model: string;
@@ -534,6 +546,47 @@ export function getAiModel(): AiModel {
 export function setAiModel(m: AiModel): void {
   if (!isBrowser()) return;
   window.localStorage.setItem(AI_MODEL_KEY, m);
+}
+
+export function getAiProvider(): AiProvider {
+  if (!isBrowser()) return DEFAULT_AI_PROVIDER;
+  const raw = window.localStorage.getItem(AI_PROVIDER_KEY);
+  if (raw === "openai") return "openai";
+  return DEFAULT_AI_PROVIDER;
+}
+
+export function setAiProvider(p: AiProvider): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(AI_PROVIDER_KEY, p);
+}
+
+export function getOpenAiKey(): string {
+  if (!isBrowser()) return "";
+  return window.localStorage.getItem(OPENAI_KEY_KEY) ?? "";
+}
+
+export function setOpenAiKey(key: string): void {
+  if (!isBrowser()) return;
+  const trimmed = key.trim();
+  if (trimmed.length === 0) window.localStorage.removeItem(OPENAI_KEY_KEY);
+  else window.localStorage.setItem(OPENAI_KEY_KEY, trimmed);
+}
+
+export function clearOpenAiKey(): void {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(OPENAI_KEY_KEY);
+}
+
+export function getOpenAiModel(): OpenAiModel {
+  if (!isBrowser()) return DEFAULT_OPENAI_MODEL;
+  const raw = window.localStorage.getItem(OPENAI_MODEL_KEY);
+  if (raw === "gpt-4o") return "gpt-4o";
+  return DEFAULT_OPENAI_MODEL;
+}
+
+export function setOpenAiModel(m: OpenAiModel): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(OPENAI_MODEL_KEY, m);
 }
 
 export function hasAiConsent(): boolean {

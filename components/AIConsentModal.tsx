@@ -51,17 +51,17 @@ export default function AIConsentModal({ open, onAccept, onDismiss }: Props) {
           <div className="text-[10px] uppercase tracking-wider text-muted">What this means</div>
           <ul className="space-y-1.5 list-disc pl-4 leading-snug">
             <li>
-              <span className="font-semibold">Each AI call sends data to Anthropic.</span> Specifically: the scenario
-              metadata, your decision values, your thesis/invalidation text, your score, and your chat history. Nothing
-              else.
+              <span className="font-semibold">Each AI call sends data to your chosen provider</span> (Anthropic or
+              OpenAI). Specifically: the scenario metadata, your decision values, your thesis/invalidation text, your
+              score, and your chat history. Nothing else.
             </li>
             <li>
               <span className="font-semibold">You bring your own API key.</span> Stored in this browser's localStorage.
               Anyone with access to this browser profile can read it. Don't use a production key.
             </li>
             <li>
-              <span className="font-semibold">You pay per call.</span> ~$0.005 per review on Haiku (default) or ~$0.02
-              on Sonnet. Chat follow-ups are cheaper thanks to prompt caching.
+              <span className="font-semibold">You pay per call.</span> Anthropic: ~$0.005 (Haiku) or ~$0.02 (Sonnet).
+              OpenAI: ~$0.001 (GPT-4o mini) or ~$0.01 (GPT-4o). Anthropic chat follow-ups are cheaper with prompt caching.
             </li>
             <li>
               <span className="font-semibold">You can revoke any time.</span> Settings → Revoke clears consent. Cached
@@ -71,8 +71,8 @@ export default function AIConsentModal({ open, onAccept, onDismiss }: Props) {
         </div>
 
         <p className="text-[11px] text-muted leading-snug italic">
-          The app calls api.anthropic.com directly from your browser using the
-          anthropic-dangerous-direct-browser-access header. Your key never leaves this device for any other reason.
+          Calls go directly from your browser to the provider's API (api.anthropic.com or api.openai.com). Your key
+          never leaves this device for any other reason.
         </p>
 
         <div className="flex justify-end gap-2 pt-1">
