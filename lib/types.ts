@@ -189,6 +189,7 @@ export type ChartToolId =
   | "bb"
   | "vwap"
   | "super_guppy"
+  | "chris_guppy"
   | "keltner"
   | "pivots"
   | "patterns";
@@ -200,6 +201,7 @@ export const CHART_TOOL_LABELS: Record<ChartToolId, string> = {
   bb: "Bollinger Bands (20, 2σ)",
   vwap: "VWAP",
   super_guppy: "Super Guppy (GMMA)",
+  chris_guppy: "Chris's Super Guppy (editable)",
   keltner: "Keltner Channels (20, 10, 2 ATR)",
   pivots: "Pivot Points (R1/R2/S1/S2)",
   patterns: "Candle patterns",
@@ -214,6 +216,7 @@ export const DEFAULT_INDICATOR_CONFIG: IndicatorConfig = {
   bb: false,
   vwap: false,
   super_guppy: false,
+  chris_guppy: false,
   keltner: false,
   pivots: false,
   patterns: false,

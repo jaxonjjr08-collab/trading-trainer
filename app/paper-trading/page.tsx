@@ -79,6 +79,15 @@ const DEFAULT_GRANULARITY: Granularity = 60; // 1m candles
 // hook auto-throttles its cadence per width (see lib/live-data.pollIntervalMs).
 const PICKABLE_GRANULARITIES: Granularity[] = [60, 300, 900, 3600, 21600, 86400];
 
+// v5.9.5 — Background history pagination. Once a session is up and the
+// active chart has fewer than this many bars loaded, a quiet loop fetches
+// one 280-bar page every ~2 seconds in the background. Users who want
+// everything immediately still tap "Load all"; users who don't think about
+// it get a chart that just keeps growing while they read it. Scoped per
+// (symbol, granularity) so a tab switch or timeframe change resets the loop.
+const BACKGROUND_TARGET_BARS = 2000;
+const BACKGROUND_PAGE_DELAY_MS = 2000;
+
 export default function PaperTradingPage() {
   const [session, setSession] = useState<PortfolioSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -237,11 +246,33 @@ export default function PaperTradingPage() {
   // Polling hook's next tick picks up the new cadence automatically.
   const [switchingTf, setSwitchingTf] = useState(false);
   // v5.6.2 — Load-older pagination state. `loadingOlder` disables the
-  // button + shows a spinner while a fetch is in flight; `noMoreHistory`
+  // button + shows a spinner while a fetch is in flight; `activeExhausted`
   // latches true once Coinbase returns an empty page so the button can
   // disable itself permanently (we've hit the listing date).
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [noMoreHistory, setNoMoreHistory] = useState(false);
+  // v5.9.5 — was a single boolean; now per (symbol, granularity) so
+  // exhausting one pair (e.g. 1INCH at 15m) doesn't make BTC at 15m
+  // refuse to keep paginating. Key is `${symbol}:${granularitySec}`.
+  const [exhaustedScopes, setExhaustedScopes] = useState<Set<string>>(
+    new Set()
+  );
+  function scopeKey(sym: string, gran: number | null | undefined): string {
+    return `${sym}:${gran ?? "?"}`;
+  }
+  function markExhausted(sym: string, gran: number | null | undefined) {
+    setExhaustedScopes((prev) => {
+      const next = new Set(prev);
+      next.add(scopeKey(sym, gran));
+      return next;
+    });
+  }
+  function clearExhausted(sym: string, gran: number | null | undefined) {
+    setExhaustedScopes((prev) => {
+      const next = new Set(prev);
+      next.delete(scopeKey(sym, gran));
+      return next;
+    });
+  }
   // v5.6.3 — Streaming load-all state. When non-null, the load-all loop is
   // active; setting it false (via the Stop button or natural completion)
   // halts the loop. `loadAllProgress` is the running bar count for the
@@ -249,6 +280,11 @@ export default function PaperTradingPage() {
   // chart redraw 13 times.
   const [loadingAll, setLoadingAll] = useState(false);
   const loadAllAbortRef = useRef({ aborted: false });
+  // v5.9.5 — Background-pagination state. `backgroundLoading` is a UI flag
+  // only (drives the "auto-loading…" hint by the bar counter). The actual
+  // loop runs on a setInterval that polls every BACKGROUND_PAGE_DELAY_MS;
+  // see the effect below.
+  const [backgroundLoading, setBackgroundLoading] = useState(false);
   async function handleLoadOlder() {
     if (!session) return;
     // v5.8.0 — operate on the active symbol, not always symbols[0]. The
@@ -269,7 +305,7 @@ export default function PaperTradingPage() {
         280
       );
       if (older.length === 0) {
-        setNoMoreHistory(true);
+        markExhausted(sym.symbol, sym.granularitySec);
         return;
       }
       const next = prependLiveCandles(session, sym.symbol, older);
@@ -321,7 +357,7 @@ export default function PaperTradingPage() {
           280
         );
         if (older.length === 0) {
-          setNoMoreHistory(true);
+          markExhausted(sym.symbol, sym.granularitySec);
           break;
         }
         working = prependLiveCandles(working, sym.symbol, older);
@@ -364,7 +400,10 @@ export default function PaperTradingPage() {
       // v5.6.2 — Reset the "no more history" flag on every timeframe
       // change. A coarser granularity might reach further back than the
       // previous one allowed, so the load-older button gets a fresh shot.
-      setNoMoreHistory(false);
+      // v5.9.5 — per-(symbol, granularity) — clear the NEW pair so its
+      // load-older starts fresh; the previous pair's exhaustion stays
+      // recorded in case the user switches back.
+      clearExhausted(sym.symbol, g);
     } catch (err) {
       // Surface in console; the LiveDataStatus pill will catch the next
       // polling failure if Coinbase is actually unreachable.
@@ -425,6 +464,78 @@ export default function PaperTradingPage() {
   }
   // Alias the ticker-poll block uses; same lookup as activeSymbolData.
   const activeSymForTicker = activeSymbolData;
+
+  // v5.9.5 — Background pagination. Quietly fetches one 280-bar page every
+  // few seconds while the user reads the chart, so the visible history grows
+  // without needing a "Load 280 older" click. Stops at BACKGROUND_TARGET_BARS,
+  // when Coinbase returns empty, or when the user kicks off an explicit
+  // load-older / load-all. Scoped to the active (symbol, granularity); a
+  // tab or timeframe switch resets the loop.
+  const activeGranularity = activeSymbolData?.granularitySec ?? null;
+  // Refs let the interval callback (created once at mount) read the latest
+  // values without having to re-create the timer every render — re-creating
+  // it was canceling the in-flight delay before the first fetch ever fired.
+  const bgSessionRef = useRef<PortfolioSession | null>(null);
+  bgSessionRef.current = session;
+  const bgActiveSymbolRef = useRef<string>("");
+  bgActiveSymbolRef.current = activeSymbolKey;
+  const bgExhaustedRef = useRef<Set<string>>(new Set());
+  bgExhaustedRef.current = exhaustedScopes;
+  const bgLoadingAllRef = useRef(false);
+  bgLoadingAllRef.current = loadingAll;
+  const bgLoadingOlderRef = useRef(false);
+  bgLoadingOlderRef.current = loadingOlder;
+  const bgInFlightRef = useRef(false);
+  // v5.9.5 — derived: is the current (symbol, granularity) pair known to
+  // be out of older data? Drives the manual Load-Older button copy and
+  // the background loader's guard.
+  const activeExhausted = exhaustedScopes.has(
+    scopeKey(activeSymbolKey, activeGranularity)
+  );
+  useEffect(() => {
+    const tick = async () => {
+      if (bgInFlightRef.current) return;
+      if (bgLoadingAllRef.current || bgLoadingOlderRef.current) return;
+      const ses = bgSessionRef.current;
+      const symKey = bgActiveSymbolRef.current;
+      if (!ses || ses.status === "ended" || !symKey) return;
+      const sym = ses.symbols.find((s) => s.symbol === symKey);
+      if (!sym || !sym.productId || sym.granularitySec == null) return;
+      if (bgExhaustedRef.current.has(scopeKey(symKey, sym.granularitySec))) {
+        return;
+      }
+      if (sym.candles.length >= BACKGROUND_TARGET_BARS) return;
+      const oldest = sym.candles[0];
+      if (!oldest) return;
+      bgInFlightRef.current = true;
+      setBackgroundLoading(true);
+      try {
+        const older = await fetchHistoryBefore(
+          sym.productId,
+          sym.granularitySec as Granularity,
+          oldest.time,
+          280
+        );
+        if (older.length === 0) {
+          markExhausted(symKey, sym.granularitySec);
+        } else {
+          setSession((prev) => {
+            if (!prev) return prev;
+            const next = prependLiveCandles(prev, symKey, older);
+            saveLiveSession(next);
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error("Background load failed:", err);
+      } finally {
+        bgInFlightRef.current = false;
+        setBackgroundLoading(false);
+      }
+    };
+    const id = window.setInterval(tick, BACKGROUND_PAGE_DELAY_MS);
+    return () => window.clearInterval(id);
+  }, []);
   // Reset the in-progress candle anytime the active symbol's last closed
   // candle changes OR the active symbol itself changes — that means
   // either a bar just closed or the user switched tabs.
@@ -706,21 +817,21 @@ export default function PaperTradingPage() {
                 <button
                   type="button"
                   onClick={handleLoadOlder}
-                  disabled={loadingOlder || loadingAll || noMoreHistory}
+                  disabled={loadingOlder || loadingAll || activeExhausted}
                   className="text-[10px] font-mono uppercase tracking-wide text-muted border border-line bg-panel2 rounded px-2 py-1 hover:text-text hover:border-accent/40 disabled:opacity-50 disabled:cursor-not-allowed"
                   title={
-                    noMoreHistory
+                    activeExhausted
                       ? "Coinbase has no older data at this granularity"
                       : "Fetch the next 280 bars"
                   }
                 >
                   {loadingOlder
                     ? "Loading…"
-                    : noMoreHistory
+                    : activeExhausted
                     ? "← End of data"
                     : "← Load 280 older"}
                 </button>
-                {!loadingAll && !noMoreHistory && (
+                {!loadingAll && !activeExhausted && (
                   <button
                     type="button"
                     onClick={handleLoadAll}
@@ -744,6 +855,7 @@ export default function PaperTradingPage() {
               </div>
               <span className="text-[10px] font-mono text-muted">
                 {loadingAll && "streaming · "}
+                {backgroundLoading && !loadingAll && "auto-loading · "}
                 {activeSymbolData.candles.length} bars loaded
               </span>
             </div>

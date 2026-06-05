@@ -43,8 +43,14 @@ import {
   guppyTrendStateLatest,
   type GuppyTrendState,
 } from "@/lib/indicators-guppy";
+import {
+  CHRIS_GUPPY_DEFAULTS,
+  computeChrisGuppy,
+  chrisGuppyStateLatest,
+  type ChrisGuppyParams,
+} from "@/lib/indicators-chris-guppy";
 import { clusterColors, paletteFor, type ColorMode } from "@/lib/color-mode";
-import { getColorMode } from "@/lib/storage";
+import { getChrisGuppyParams, getColorMode } from "@/lib/storage";
 import ChartLegend from "@/components/practice/ChartLegend";
 import ChartHoverTooltip from "@/components/practice/ChartHoverTooltip";
 import MeasureOverlay from "@/components/practice/MeasureOverlay";
@@ -113,6 +119,36 @@ function toSeriesData(candles: Candle[]): CandlestickData<UTCTimestamp>[] {
     low: c.low,
     close: c.close,
   }));
+}
+
+// v5.9.4 — Pick decimal precision based on price magnitude so low-priced
+// assets (e.g. 1INCH-USD ~$0.075) don't render as flat slivers when every
+// candle rounds to the same 2-decimal value. Returns { precision, minMove }
+// shaped for lightweight-charts' priceFormat option. Tracks the smallest
+// non-trivial range across the visible window so a coin that ranges from
+// $0.0001 to $0.0009 still shows distinct bodies.
+function pickPriceFormat(candles: Candle[]): {
+  precision: number;
+  minMove: number;
+} {
+  if (candles.length === 0) return { precision: 2, minMove: 0.01 };
+  // Use the median-ish "last close" as the magnitude probe — fast and
+  // robust against historical outliers.
+  const last = candles[candles.length - 1];
+  const probe = Math.max(
+    Math.abs(last.close),
+    Math.abs(last.high),
+    Math.abs(last.low)
+  );
+  let precision: number;
+  if (probe >= 1000) precision = 2;
+  else if (probe >= 1) precision = 2;
+  else if (probe >= 0.1) precision = 4;
+  else if (probe >= 0.001) precision = 5;
+  else if (probe >= 0.00001) precision = 7;
+  else precision = 8;
+  const minMove = 1 / Math.pow(10, precision);
+  return { precision, minMove };
 }
 
 function toLineData(
@@ -222,6 +258,16 @@ type OverlayMap = {
   // that keeps candle-data updates cheap.
   guppyPaintedState?: GuppyTrendState;
   guppyPaintedColorMode?: ColorMode;
+  // v5.9.4 — Chris's Super Guppy: parallel to the stock Guppy state, but
+  // sized by user-configurable params.
+  chrisFast?: ISeriesApi<"Line">[];
+  chrisSlow?: ISeriesApi<"Line">[];
+  chrisFastAvg?: ISeriesApi<"Line">;
+  chrisSlowAvg?: ISeriesApi<"Line">;
+  chrisEma200?: ISeriesApi<"Line">;
+  chrisPaintedState?: GuppyTrendState;
+  chrisPaintedColorMode?: ColorMode;
+  chrisPaintedSignature?: string;
   // v5.2.0 — Keltner Channels mirror Bollinger's three-series shape.
   keltnerUpper?: ISeriesApi<"Line">;
   keltnerMiddle?: ISeriesApi<"Line">;
@@ -361,6 +407,23 @@ export default function Chart({
   // toggle changes — surfaced to the legend chip + tooltip headline.
   const [colorMode, setColorMode] = useState<ColorMode>("colorblind");
   const [guppyState, setGuppyState] = useState<GuppyTrendState>("neutral");
+  // v5.9.4 — Chris's Super Guppy params. Read from storage on mount and on
+  // the 'trainer:chris-guppy-change' broadcast so the user can tweak
+  // settings in the modal and see the ribbon repaint live.
+  const [chrisParams, setChrisParams] = useState<ChrisGuppyParams>(
+    CHRIS_GUPPY_DEFAULTS
+  );
+  const [chrisState, setChrisState] = useState<GuppyTrendState>("neutral");
+  useEffect(() => {
+    setChrisParams(getChrisGuppyParams());
+    const reread = () => setChrisParams(getChrisGuppyParams());
+    window.addEventListener("storage", reread);
+    window.addEventListener("trainer:chris-guppy-change", reread);
+    return () => {
+      window.removeEventListener("storage", reread);
+      window.removeEventListener("trainer:chris-guppy-change", reread);
+    };
+  }, []);
   useEffect(() => {
     setColorMode(getColorMode());
     // v5.6.6 — three signals can flip the palette:
@@ -717,6 +780,19 @@ export default function Chart({
     const hiddenSeries = hiddenSeriesRef.current;
     if (!main || !hiddenSeries) return;
 
+    // v5.9.4 — apply a price-magnitude-aware precision so low-priced
+    // coins (e.g. 1INCH at ~$0.075) don't collapse into one rounded level.
+    const fmt = pickPriceFormat(
+      revealHidden ? [...visible, ...hidden] : visible
+    );
+    const priceFormat = {
+      type: "price" as const,
+      precision: fmt.precision,
+      minMove: fmt.minMove,
+    };
+    main.applyOptions({ priceFormat });
+    hiddenSeries.applyOptions({ priceFormat });
+
     main.setData(toSeriesData(visible));
     hiddenSeries.setData(revealHidden ? toSeriesData(hidden) : []);
 
@@ -808,6 +884,7 @@ export default function Chart({
     const wantBb = overlays?.bb ?? false;
     const wantVwap = overlays?.vwap ?? false;
     const wantGuppy = overlays?.super_guppy ?? false;
+    const wantChrisGuppy = overlays?.chris_guppy ?? false;
     const wantKeltner = overlays?.keltner ?? false;
     const wantPivots = overlays?.pivots ?? false;
     const combined = revealHidden ? [...visible, ...hidden] : [...visible];
@@ -1123,7 +1200,185 @@ export default function Chart({
     } else {
       dropGuppy();
     }
-  }, [overlays, visible, hidden, revealHidden, colorMode, guppyState]);
+
+    // v5.9.4 — Chris's Super Guppy. Same shape as the stock Guppy block
+    // but the cluster sizes come from chrisParams (fast/slow length), and
+    // optional fast/slow average curves + EMA 200 reference render as
+    // separate distinguishable lines.
+    const dropChris = () => {
+      const lists: Array<ISeriesApi<"Line">[] | undefined> = [
+        map.chrisFast,
+        map.chrisSlow,
+      ];
+      for (const list of lists) {
+        if (!list) continue;
+        for (const s of list) {
+          seriesMetaRef.current.delete(s);
+          chart.removeSeries(s);
+        }
+      }
+      map.chrisFast = undefined;
+      map.chrisSlow = undefined;
+      if (map.chrisFastAvg) {
+        chart.removeSeries(map.chrisFastAvg);
+        map.chrisFastAvg = undefined;
+      }
+      if (map.chrisSlowAvg) {
+        chart.removeSeries(map.chrisSlowAvg);
+        map.chrisSlowAvg = undefined;
+      }
+      if (map.chrisEma200) {
+        chart.removeSeries(map.chrisEma200);
+        map.chrisEma200 = undefined;
+      }
+      map.chrisPaintedState = undefined;
+      map.chrisPaintedColorMode = undefined;
+      map.chrisPaintedSignature = undefined;
+    };
+
+    if (wantChrisGuppy) {
+      const params = chrisParams;
+      const guppy = computeChrisGuppy(combined, params);
+      const nextState = chrisGuppyStateLatest(
+        guppy,
+        combined,
+        params.filterWith200
+      );
+      // Signature captures every shape-affecting param so a change to the
+      // fast/slow period lists forces a full rebuild (line count changed),
+      // while data-only ticks keep the existing series.
+      const signature = [
+        params.fast.join(","),
+        params.slow.join(","),
+        params.showAverageCurves ? 1 : 0,
+        params.show200 ? 1 : 0,
+        params.ema200Length,
+        params.source,
+      ].join("|");
+      const needsRepaint =
+        !!map.chrisFast &&
+        (map.chrisPaintedState !== nextState ||
+          map.chrisPaintedColorMode !== colorMode ||
+          map.chrisPaintedSignature !== signature);
+      if (needsRepaint) dropChris();
+
+      const palette = paletteFor(colorMode, nextState);
+      const RIBBON_ALPHA = 0.75;
+      const fastColors = clusterColors(
+        palette.shortStart,
+        palette.shortEnd,
+        params.fast.length,
+        RIBBON_ALPHA
+      );
+      const slowColors = clusterColors(
+        palette.longStart,
+        palette.longEnd,
+        params.slow.length,
+        RIBBON_ALPHA
+      );
+
+      if (!map.chrisFast) {
+        const list: ISeriesApi<"Line">[] = [];
+        for (let i = 0; i < params.fast.length; i++) {
+          const s = chart.addLineSeries({
+            color: fastColors[i],
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+          seriesMetaRef.current.set(s, "chris_guppy");
+          list.push(s);
+        }
+        map.chrisFast = list;
+      }
+      if (!map.chrisSlow) {
+        const list: ISeriesApi<"Line">[] = [];
+        for (let i = 0; i < params.slow.length; i++) {
+          const s = chart.addLineSeries({
+            color: slowColors[i],
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+          seriesMetaRef.current.set(s, "chris_guppy");
+          list.push(s);
+        }
+        map.chrisSlow = list;
+      }
+      for (let i = 0; i < params.fast.length; i++) {
+        map.chrisFast![i].setData(toLineData(combined, guppy.fast[i]));
+      }
+      for (let i = 0; i < params.slow.length; i++) {
+        map.chrisSlow![i].setData(toLineData(combined, guppy.slow[i]));
+      }
+
+      if (params.showAverageCurves && guppy.fastAvg && guppy.slowAvg) {
+        if (!map.chrisFastAvg) {
+          map.chrisFastAvg = chart.addLineSeries({
+            color: palette.shortEnd,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+        }
+        if (!map.chrisSlowAvg) {
+          map.chrisSlowAvg = chart.addLineSeries({
+            color: palette.longEnd,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+        }
+        map.chrisFastAvg.setData(toLineData(combined, guppy.fastAvg));
+        map.chrisSlowAvg.setData(toLineData(combined, guppy.slowAvg));
+      } else {
+        if (map.chrisFastAvg) {
+          chart.removeSeries(map.chrisFastAvg);
+          map.chrisFastAvg = undefined;
+        }
+        if (map.chrisSlowAvg) {
+          chart.removeSeries(map.chrisSlowAvg);
+          map.chrisSlowAvg = undefined;
+        }
+      }
+
+      if (params.show200 && guppy.ema200) {
+        if (!map.chrisEma200) {
+          map.chrisEma200 = chart.addLineSeries({
+            color: EMA200_COLOR,
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+        }
+        map.chrisEma200.setData(toLineData(combined, guppy.ema200));
+      } else if (map.chrisEma200) {
+        chart.removeSeries(map.chrisEma200);
+        map.chrisEma200 = undefined;
+      }
+
+      map.chrisPaintedState = nextState;
+      map.chrisPaintedColorMode = colorMode;
+      map.chrisPaintedSignature = signature;
+      if (nextState !== chrisState) setChrisState(nextState);
+    } else {
+      dropChris();
+    }
+  }, [
+    overlays,
+    visible,
+    hidden,
+    revealHidden,
+    colorMode,
+    guppyState,
+    chrisParams,
+    chrisState,
+  ]);
 
   // v5.2.0 — Drawings sync. Reads the persisted trendlines for the active
   // scope and draws each as a 2-point line series. On scope change (e.g.
@@ -1271,6 +1526,7 @@ export default function Chart({
     "bb",
     "vwap",
     "super_guppy",
+    "chris_guppy",
     "keltner",
     "pivots",
   ];
@@ -1281,6 +1537,10 @@ export default function Chart({
   const superGuppyInfo =
     overlays?.super_guppy
       ? { state: guppyState, colorMode }
+      : undefined;
+  const chrisGuppyInfo =
+    overlays?.chris_guppy
+      ? { state: chrisState, colorMode }
       : undefined;
 
   // v5.2.0 — drawing-mode status copy. Tells the user where they are in the
@@ -1341,6 +1601,7 @@ export default function Chart({
         values={hoverValues}
         highlightId={hover?.closestId ?? null}
         superGuppy={superGuppyInfo}
+        chrisGuppy={chrisGuppyInfo}
       />
       {hover && (
         <ChartHoverTooltip

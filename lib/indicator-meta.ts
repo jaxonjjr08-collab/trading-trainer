@@ -32,6 +32,7 @@ export type IndicatorLineId =
   | "macd_signal"
   | "macd_hist"
   | "super_guppy"
+  | "chris_guppy"
   | "keltner_upper"
   | "keltner_middle"
   | "keltner_lower"
@@ -218,6 +219,19 @@ export const INDICATOR_META: Record<IndicatorLineId, IndicatorMeta> = {
     // that's only reached if a future surface forgets to override.
     format: () => "",
   },
+  // v5.9.4 — Chris's Super Guppy — user-editable variant of the GMMA
+  // modelled on the TradingView indicator the user trades from. Defaults
+  // mirror that script (11 fast + 16 slow EMAs); the params modal lets the
+  // user override every period, the source, and the optional EMA 200.
+  chris_guppy: {
+    parentToolId: "chris_guppy",
+    name: "Chris's Super Guppy",
+    color: "#4f8cff",
+    oneLine:
+      "GMMA ribbon with user-editable fast/slow EMAs, an optional EMA 200, and an optional 200-filtered trend gate. Configure from the gear icon next to the toggle.",
+    learnTermId: "super_guppy",
+    format: () => "",
+  },
   // v5.2.0 — Keltner Channels. EMA(20) midline ± 2 × ATR(10). Envelope
   // widens in trending markets (unlike BB, which narrows during low-vol
   // squeezes). Three lines: upper, middle (EMA), lower.
@@ -310,6 +324,7 @@ export const LINES_BY_TOOL: Record<ChartToolId, IndicatorLineId[]> = {
   // The 24 ribbon EMAs are represented as a single legend row — listing 24
   // would crush every other indicator off the chart.
   super_guppy: ["super_guppy"],
+  chris_guppy: ["chris_guppy"],
   // v5.2.0 — Keltner mirrors Bollinger's three-line shape; Pivots ship as
   // five horizontal lines (central pivot, R1/R2 above, S1/S2 below).
   keltner: ["keltner_upper", "keltner_middle", "keltner_lower"],

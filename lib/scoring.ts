@@ -450,6 +450,14 @@ const INDICATOR_KEYWORDS: Record<ChartToolId, string[]> = {
     "ema ribbon",
     "ma ribbon",
   ],
+  chris_guppy: [
+    "chris",
+    "chris's guppy",
+    "chris guppy",
+    "guppy",
+    "gmma",
+    "ribbon",
+  ],
   // v5.2.0 — Keltner Channels. "Keltner" alone; the longer phrases pick up
   // the descriptive references too.
   keltner: ["keltner", "atr channel", "atr band"],

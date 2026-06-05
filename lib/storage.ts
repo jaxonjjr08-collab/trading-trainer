@@ -87,6 +87,10 @@ const SCENARIOS_SEEN_AT_KEY = "trainer.scenariosSeenAt.v1";
 // back to false so adding a new tool in future versions doesn't auto-enable it
 // for existing users.
 const INDICATORS_KEY = "trainer.indicators.v1";
+// v5.9.4 — params for Chris's Super Guppy. Stored as JSON; the modal in
+// ChrisGuppySettings writes here. Missing-key fallback is the TV indicator's
+// defaults (see CHRIS_GUPPY_DEFAULTS).
+const CHRIS_GUPPY_KEY = "trainer.chrisGuppy.v1";
 // v5.1.1 — chart color mode: "colorblind" (default, blue/orange/gray) or
 // "standard" (green/red/amber). Read by the Super Guppy ribbon today; future
 // trend-state-colored tools will read the same key. Missing-key fallback is
@@ -747,6 +751,93 @@ export function setDefaultIndicators(next: Partial<IndicatorConfig>): IndicatorC
     }
   }
   return merged;
+}
+
+// v5.9.4 — Chris's Super Guppy params, persisted across sessions. Reads
+// fall back to CHRIS_GUPPY_DEFAULTS for any missing/corrupted field so the
+// shape stays valid even after schema additions in future versions.
+import {
+  CHRIS_GUPPY_DEFAULTS,
+  type ChrisGuppyParams,
+  type ChrisGuppySource,
+} from "./indicators-chris-guppy";
+
+const VALID_SOURCES: ChrisGuppySource[] = [
+  "close",
+  "open",
+  "high",
+  "low",
+  "hl2",
+  "hlc3",
+  "ohlc4",
+];
+
+export function getChrisGuppyParams(): ChrisGuppyParams {
+  if (!isBrowser()) return { ...CHRIS_GUPPY_DEFAULTS };
+  try {
+    const raw = window.localStorage.getItem(CHRIS_GUPPY_KEY);
+    if (!raw) return { ...CHRIS_GUPPY_DEFAULTS };
+    const parsed = JSON.parse(raw) as Partial<ChrisGuppyParams>;
+    const fast = Array.isArray(parsed.fast)
+      ? parsed.fast
+          .map((n) => Number(n))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      : null;
+    const slow = Array.isArray(parsed.slow)
+      ? parsed.slow
+          .map((n) => Number(n))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      : null;
+    return {
+      fast:
+        fast && fast.length > 0
+          ? fast.slice(0, CHRIS_GUPPY_DEFAULTS.fast.length)
+          : [...CHRIS_GUPPY_DEFAULTS.fast],
+      slow:
+        slow && slow.length > 0
+          ? slow.slice(0, CHRIS_GUPPY_DEFAULTS.slow.length)
+          : [...CHRIS_GUPPY_DEFAULTS.slow],
+      ema200Length:
+        Number.isFinite(parsed.ema200Length) && (parsed.ema200Length as number) > 0
+          ? (parsed.ema200Length as number)
+          : CHRIS_GUPPY_DEFAULTS.ema200Length,
+      source:
+        typeof parsed.source === "string" &&
+        VALID_SOURCES.includes(parsed.source as ChrisGuppySource)
+          ? (parsed.source as ChrisGuppySource)
+          : CHRIS_GUPPY_DEFAULTS.source,
+      showAverageCurves:
+        typeof parsed.showAverageCurves === "boolean"
+          ? parsed.showAverageCurves
+          : CHRIS_GUPPY_DEFAULTS.showAverageCurves,
+      show200:
+        typeof parsed.show200 === "boolean"
+          ? parsed.show200
+          : CHRIS_GUPPY_DEFAULTS.show200,
+      filterWith200:
+        typeof parsed.filterWith200 === "boolean"
+          ? parsed.filterWith200
+          : CHRIS_GUPPY_DEFAULTS.filterWith200,
+      colourCandles:
+        typeof parsed.colourCandles === "boolean"
+          ? parsed.colourCandles
+          : CHRIS_GUPPY_DEFAULTS.colourCandles,
+    };
+  } catch {
+    return { ...CHRIS_GUPPY_DEFAULTS };
+  }
+}
+
+export function setChrisGuppyParams(next: ChrisGuppyParams): void {
+  if (!isBrowser()) return;
+  try {
+    window.localStorage.setItem(CHRIS_GUPPY_KEY, JSON.stringify(next));
+    // Same-tab broadcast so any open chart re-reads and repaints without
+    // requiring a navigation event.
+    window.dispatchEvent(new CustomEvent("trainer:chris-guppy-change"));
+  } catch {
+    // ignore quota
+  }
 }
 
 // v5.1.1 — chart color mode getter/setter. The Super Guppy ribbon reads

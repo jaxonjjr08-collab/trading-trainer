@@ -21,6 +21,7 @@ const ORDER: ChartToolId[] = [
   "rsi",
   "macd",
   "super_guppy",
+  "chris_guppy",
   "pivots",
   "patterns",
 ];
@@ -33,6 +34,8 @@ const DESCRIPTIONS: Record<ChartToolId, string> = {
   macd: "MACD with signal line and histogram. Renders in a sub-panel under the chart.",
   super_guppy:
     "Super Guppy — 24-EMA color-coded ribbon. Color flips green/red (or blue/orange in colorblind mode) based on whether the short ribbon is fully above or below the long ribbon.",
+  chris_guppy:
+    "Chris's Super Guppy — user-editable GMMA variant modelled on the TradingView indicator. Configure fast/slow periods, source, and the optional EMA 200 filter from the gear icon next to the toggle.",
   keltner:
     "Keltner Channels — EMA(20) midline with ATR-derived bands. Pink envelope. Widens during trends; complements Bollinger which narrows in low-vol squeezes.",
   pivots:

@@ -31,6 +31,9 @@ const ALL_LINE_IDS: IndicatorLineId[] = [
   // (one legend row, one tooltip card). The hover proximity check still walks
   // all 24 series — see Chart.tsx's dedup-by-id logic.
   "super_guppy",
+  // v5.9.4 — Chris's Super Guppy is the user-editable variant of the GMMA;
+  // shares the same one-row legend convention as super_guppy.
+  "chris_guppy",
   // v5.2.0 — Keltner Channels (3 lines) + Pivot Points (5 horizontal levels).
   "keltner_upper",
   "keltner_middle",
@@ -109,6 +112,7 @@ describe("LINES_BY_TOOL", () => {
       "bb",
       "vwap",
       "super_guppy",
+      "chris_guppy",
       "keltner",
       "pivots",
     ];

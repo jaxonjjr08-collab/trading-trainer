@@ -302,6 +302,7 @@ export default function IndicatorSubChart({ kind, candles, height = 120 }: Props
     // always reports it as off so the sub-panel legend never tries to render
     // a state chip it has no business knowing about.
     super_guppy: false,
+    chris_guppy: false,
     // v5.2.0 — same reasoning for Keltner + Pivots: they're main-pane only.
     keltner: false,
     pivots: false,

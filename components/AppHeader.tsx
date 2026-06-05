@@ -24,7 +24,7 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="border-b border-line bg-panel">
+    <header className="border-b border-line bg-panel relative z-30">
       <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-4">
         <div className="flex items-center gap-2.5">
           {/* v6.0 — wordmark in the editorial display serif. */}

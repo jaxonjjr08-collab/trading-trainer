@@ -52,6 +52,9 @@ type Props = {
   // v5.1.1 — Super Guppy needs a state-aware color + a chip. Undefined when
   // super_guppy is off, in which case the row is omitted entirely.
   superGuppy?: { state: GuppyTrendState; colorMode: ColorMode };
+  // v5.9.4 — Same idea for Chris's Super Guppy. Separate so the two ribbons
+  // can be on simultaneously and read their own trend state.
+  chrisGuppy?: { state: GuppyTrendState; colorMode: ColorMode };
 };
 
 export default function ChartLegend({
@@ -61,6 +64,7 @@ export default function ChartLegend({
   highlightId,
   className,
   superGuppy,
+  chrisGuppy,
 }: Props) {
   if (!overlays) return null;
   const rows: IndicatorLineId[] = [];
@@ -83,9 +87,13 @@ export default function ChartLegend({
 
         // v5.1.1 — Super Guppy row has special rendering. Dot color is the
         // current trend palette's representative; "value" column is a chip.
-        if (id === "super_guppy" && superGuppy) {
-          const palette = paletteFor(superGuppy.colorMode, superGuppy.state);
-          const stateLabel = STATE_LABEL[superGuppy.state];
+        if (
+          (id === "super_guppy" && superGuppy) ||
+          (id === "chris_guppy" && chrisGuppy)
+        ) {
+          const cfg = id === "chris_guppy" ? chrisGuppy! : superGuppy!;
+          const palette = paletteFor(cfg.colorMode, cfg.state);
+          const stateLabel = STATE_LABEL[cfg.state];
           return (
             <Link
               key={id}
