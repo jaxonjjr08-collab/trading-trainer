@@ -73,7 +73,13 @@ export default function Tutorial() {
         </button>
       </div>
 
-      <div className="rounded-md border border-line bg-panel p-6 md:p-8 space-y-5">
+      {/* v5.11.0 — re-mount on every step so the entrance animation fires
+          on each card. Keyed on the step id; animate-rise gives a smooth
+          slide-in. Reduced-motion users see plain swaps via globals.css. */}
+      <div
+        key={current.id}
+        className="rounded-md border border-line bg-panel p-6 md:p-8 space-y-5 animate-rise"
+      >
         <div className="flex items-start gap-4">
           {/* v2.6 — owl mascot greets the user on Welcome step 1. Smaller on
               other steps to keep the layout consistent without dominating. */}

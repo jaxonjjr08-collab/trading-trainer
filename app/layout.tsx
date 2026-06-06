@@ -73,7 +73,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* AppHeader is a client component that suppresses chrome on focused
             routes (e.g. /welcome). See audit fix #A2. */}
         <AppHeader />
-        <main className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-6">{children}</main>
+        {/* v5.11.0 — gentle fade-in on every route mount. Quick (260ms) so
+            it never delays interaction, but enough to make the page feel like
+            it arrived rather than blinked into existence. */}
+        <main className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-6 animate-fade-in">{children}</main>
         {/* v5.9.1 — global ⌘K command palette (lazy-loaded on first open). */}
         <CommandPaletteHost />
       </body>

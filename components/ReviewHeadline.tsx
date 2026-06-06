@@ -16,6 +16,8 @@
 // zero) so the headline never shows "Strongest: undefined".
 
 import type { Score, ScoreCategoryResult } from "@/lib/types";
+import AnimatedNumber from "@/components/animation/AnimatedNumber";
+import Mascot from "@/components/Mascot";
 
 const TONE_CLASS = {
   good: "border-good/40 bg-good/5",
@@ -68,12 +70,30 @@ export default function ReviewHeadline({ score }: { score: Score }) {
     summary = "Mixed result across every category.";
   }
 
+  // v5.11.0 — the mascot reacts to your score: bounces on a clear (>=70%),
+  // gentle shake when there's real ground to recover. Stays neutral (idle, no
+  // reaction) at moderate scores so the response is honest, not pandering.
+  const mascotMood = tone === "good" ? "happy" : tone === "bad" ? "confused" : "watching";
+  const mascotReaction = tone === "good" ? "happy" : tone === "bad" ? "sad" : null;
+
   return (
-    <div className={`rounded-md border-2 p-5 ${TONE_CLASS[tone]}`}>
-      <div className="text-xs uppercase tracking-wide text-muted">Result</div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className={`text-4xl font-bold ${TONE_NUMBER[tone]}`}>{score.total}</span>
-        <span className="text-muted">/{score.max}</span>
+    <div className={`rounded-md border-2 p-5 animate-rise ${TONE_CLASS[tone]}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted">Result</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            {/* v5.11.0 — count-up reveal. The total ticks from 0 to its value
+                over ~800ms with an ease-out, then sits there. The pop class
+                scales the digit-block in for the first 500ms so the number
+                arrives with a little flourish. */}
+            <span className={`text-4xl font-bold ${TONE_NUMBER[tone]} animate-pop inline-block`}>
+              <AnimatedNumber value={score.total} durationMs={900} />
+            </span>
+            <span className="text-muted">/{score.max}</span>
+          </div>
+        </div>
+        {/* Mascot animates once on mount with the right reaction. */}
+        <Mascot mood={mascotMood} reaction={mascotReaction} size="md" />
       </div>
       <p className="text-sm mt-2">{summary}</p>
     </div>

@@ -56,7 +56,11 @@ export default function FeatureCard({
   return (
     <Link
       href={href}
-      className={`group relative flex items-start gap-3.5 rounded-xl border border-line bg-panel p-4 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${t.hoverBorder}`}
+      // v5.11.0 — animate-rise fades the card up on mount; the parent's
+      // .stagger picks the delay. hover-lift uses transform so it composes
+      // cleanly with the entrance animation (one runs once, the other on
+      // hover) without fighting over the transform property.
+      className={`group relative flex items-start gap-3.5 rounded-xl border border-line bg-panel p-4 animate-rise transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${t.hoverBorder}`}
     >
       <span
         className={`shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-lg ${t.badge}`}

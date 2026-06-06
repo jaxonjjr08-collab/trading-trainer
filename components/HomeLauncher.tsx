@@ -216,7 +216,10 @@ export default function HomeLauncher() {
                   {group.label}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* v5.11.0 — staggered fade-up entrance on the cards. The
+                  `.stagger` parent applies a 60ms cascade and each card uses
+                  `animate-rise` so they slide in one after another. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
                 {group.items.map((item) => (
                   <FeatureCard
                     key={item.href}

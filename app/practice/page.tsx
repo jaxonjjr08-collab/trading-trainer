@@ -11,6 +11,7 @@ import ReviewPanel from "@/components/ReviewPanel";
 import WhatIfSandbox from "@/components/WhatIfSandbox";
 import OutcomePanel from "@/components/OutcomePanel";
 import ReviewHeadline from "@/components/ReviewHeadline";
+import Confetti from "@/components/animation/Confetti";
 import BestDecisionCard from "@/components/BestDecisionCard";
 import AIReviewCard from "@/components/AIReviewCard";
 import AICoachChat from "@/components/AICoachChat";
@@ -1014,7 +1015,17 @@ function PracticePageInner() {
           ) : result == null ? (
             <PreSubmitChecklist draft={draft} />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 stagger animate-fade-in">
+              {/* v5.11.0 — confetti when the attempt clears (>=70%). Same
+                  threshold the scenario-path uses, so what looks like
+                  "celebrate" matches what the path counts as "cleared". The
+                  Confetti component is self-contained, viewport-fixed,
+                  pointer-events-none, and respects reduced-motion. */}
+              <Confetti
+                fire={result.attempt.score.max > 0 &&
+                  result.attempt.score.total / result.attempt.score.max >= 0.7}
+              />
+
               {/* v2.1 Phase 1 — headline first, breakdown collapsed by default.
                   Headline is the only thing the user has to read; everything
                   else is one click away. */}
@@ -1023,8 +1034,10 @@ function PracticePageInner() {
               {/* v5.10.0 — "What actually happened" promoted out of the
                   collapsed breakdown to always-visible. The reveal of how the
                   chart actually played out is the single best teaching moment;
-                  burying it behind a disclosure meant most users never saw it. */}
-              <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-1.5">
+                  burying it behind a disclosure meant most users never saw it.
+                  v5.11.0 — animate-rise picks up the .stagger delay from the
+                  parent so it slides in slightly after the headline. */}
+              <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-1.5 animate-rise">
                 <div className="text-xs uppercase tracking-wide text-accent font-semibold">
                   What actually happened
                 </div>

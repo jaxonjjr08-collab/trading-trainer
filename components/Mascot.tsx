@@ -35,6 +35,11 @@ type Props = {
   className?: string;
   // Slight head-tilt for personality, in degrees. Auto-tilted on confused.
   tiltDeg?: number;
+  // v5.11.0 — one-shot reaction animation. "happy" runs a short bounce, "sad"
+  // a sympathetic shake. Plays once on mount + whenever the value changes.
+  // Independent of `mood` (which is a static expression) so a parent can
+  // change the expression and the reaction independently.
+  reaction?: "happy" | "sad" | null;
 };
 
 export default function Mascot({
@@ -42,17 +47,24 @@ export default function Mascot({
   size = "md",
   className,
   tiltDeg,
+  reaction = null,
 }: Props) {
   const px = SIZE_PX[size];
   const autoTilt = mood === "confused" ? -12 : 0;
   const tilt = tiltDeg ?? autoTilt;
+  const reactionClass =
+    reaction === "happy"
+      ? "animate-happy"
+      : reaction === "sad"
+      ? "animate-shake"
+      : "";
 
   return (
     <svg
       viewBox="0 0 100 100"
       width={px}
       height={px}
-      className={className}
+      className={`${className ?? ""} ${reactionClass}`.trim()}
       role="img"
       aria-label={`Owl mascot (${mood})`}
       style={tilt ? { transform: `rotate(${tilt}deg)` } : undefined}

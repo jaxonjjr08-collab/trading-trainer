@@ -28,16 +28,27 @@ export default function ReviewPanel({ score }: Props) {
         </div>
       </div>
 
+      {/* v5.11.0 — each breakdown bar fills left→right with a stagger.
+          Inline `--bar-pct` is the target width; the `--bar-delay` cascades
+          ~70ms per row so the eye reads them as a sequence. */}
       <div className="space-y-1">
-        {score.breakdown.map((b) => {
+        {score.breakdown.map((b, i) => {
           const p = b.points / b.max;
+          const pct = `${Math.max(0, p) * 100}%`;
+          const delay = `${i * 70}ms`;
           return (
             <div key={b.id} className="flex items-center gap-3 text-sm">
               <div className="w-40 shrink-0 text-muted">{b.label}</div>
               <div className="flex-1 h-1.5 bg-panel2 rounded-full overflow-hidden">
                 <div
-                  className={`h-full ${p >= 0.8 ? "bg-good" : p >= 0.5 ? "bg-warn" : "bg-bad"}`}
-                  style={{ width: `${Math.max(0, p) * 100}%` }}
+                  className={`h-full animate-bar ${p >= 0.8 ? "bg-good" : p >= 0.5 ? "bg-warn" : "bg-bad"}`}
+                  style={
+                    {
+                      ["--bar-pct" as string]: pct,
+                      ["--bar-delay" as string]: delay,
+                      width: pct,
+                    } as React.CSSProperties
+                  }
                 />
               </div>
               <div className="w-12 text-right font-mono text-xs">

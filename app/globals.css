@@ -110,8 +110,9 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
   /* Smooth the theme flip when the user switches. Per-property to avoid the
-     jelly-effect of `transition: all`. */
-  transition: background-color 200ms ease, color 200ms ease;
+     jelly-effect of `transition: all`. v5.11.0 — bumped to 320ms with an
+     ease-out curve so the cross-fade settles instead of snapping. */
+  transition: background-color 320ms ease-out, color 320ms ease-out;
   position: relative;
 }
 
@@ -147,7 +148,9 @@ input,
 textarea,
 select {
   @apply bg-panel2 border border-line rounded-md px-2 py-1 text-text;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  /* v5.11.0 — match the body's longer cross-fade so a theme switch flips
+     form chrome on the same beat as the page. */
+  transition: background-color 320ms ease-out, border-color 320ms ease-out, color 320ms ease-out;
 }
 
 input:focus,
@@ -212,4 +215,142 @@ button {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ─── v5.11.0 — Motion library ───────────────────────────────────────────
+   A small set of keyframes and utility classes used app-wide for entrance,
+   feedback, and celebration moments. Each is intentionally tight (200–500ms)
+   and shipped as a plain CSS class so any component can reach for it without
+   importing JS or pulling in framer-motion. The reduced-motion block above
+   nukes durations to ~0 globally so all of these collapse to plain renders
+   for users who've opted out.
+*/
+
+/* Entrance — fade + travel up. Used on result cards, launcher tiles, etc. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Pop — soft scale-up with overshoot, for the score number reveal. */
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Bar fill — grows from 0 to its target width. Combined with inline
+   --bar-pct so each instance fills to its own value. */
+@keyframes barFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--bar-pct, 100%);
+  }
+}
+.animate-bar {
+  animation: barFill 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--bar-delay, 0ms);
+}
+
+/* Stagger helpers — applied alongside animate-rise/pop on siblings so each
+   one starts ~60ms after the previous. Up to 8 children covered. */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > *:nth-child(7) { animation-delay: 360ms; }
+.stagger > *:nth-child(8) { animation-delay: 420ms; }
+
+/* Happy bounce — short, restrained. Used on the mascot after a clear. */
+@keyframes happyBounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  20% { transform: translateY(-8px) rotate(-3deg); }
+  40% { transform: translateY(0) rotate(2deg); }
+  60% { transform: translateY(-4px) rotate(-1deg); }
+}
+.animate-happy {
+  animation: happyBounce 900ms ease-out both;
+}
+
+/* Sad shake — sympathetic, not punishing. A small lateral wobble. */
+@keyframes sadShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px) rotate(-1deg); }
+  40% { transform: translateX(3px) rotate(1deg); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.animate-shake {
+  animation: sadShake 700ms ease-in-out both;
+}
+
+/* Glow pulse — single flash of accent glow on value changes (streak, PnL). */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+  40% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+.animate-glow {
+  animation: glowPulse 900ms ease-out both;
+}
+
+/* Checkmark draw — used on "Saved ✓" toasts and cleared chip ticks.
+   The SVG path uses stroke-dashoffset so this works on any <path>
+   that sets stroke-dasharray inline. */
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+.animate-check path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: drawCheck 380ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+}
+
+/* Page-level fade-in — wraps a route's contents. Cheap default polish. */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 260ms ease-out both;
+}
+
+/* Confetti fall — used by the Confetti component. Each particle gets random
+   inline --x / --rot / --delay / --duration so they spread out naturally. */
+@keyframes confettiFall {
+  0% {
+    transform: translate3d(0, -20vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--x, 0), 110vh, 0) rotate(var(--rot, 540deg));
+    opacity: 0;
+  }
+}
+.animate-confetti {
+  animation: confettiFall var(--duration, 1800ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
 }
