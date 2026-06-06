@@ -11,8 +11,16 @@
 // system) cost ~10% of the initial call.
 
 import { CHART_TOOL_LABELS, type Attempt, type ChartToolId, type Decision, type Scenario } from "./types";
-import type { AiModel } from "./storage";
-import { getAiKey, getAiModel, DEFAULT_AI_MODEL } from "./storage";
+import type { AiModel, AiProvider, OpenAiModel } from "./storage";
+import {
+  getAiKey,
+  getAiModel,
+  getAiProvider,
+  getOpenAiKey,
+  getOpenAiModel,
+  DEFAULT_AI_MODEL,
+  DEFAULT_OPENAI_MODEL,
+} from "./storage";
 import { macroContextForTime } from "./macro-context";
 import { MISTAKE_TAGS } from "./mistakes";
 
@@ -22,11 +30,17 @@ export type AIMessage = {
 };
 
 export type StreamCompletionOpts = {
-  model?: AiModel;
+  // v5.10.5 — model union widened so the caller can pass an OpenAI model id.
+  // When omitted, the active provider's stored model is used.
+  model?: AiModel | OpenAiModel;
   maxTokens?: number;
-  // When true (default), the system block is sent with cache_control:ephemeral
-  // so repeat calls (chat turns on the same context) are cheap.
+  // When true (default), the Anthropic system block is sent with
+  // cache_control:ephemeral so repeat calls (chat turns on the same context)
+  // are cheap. Ignored for OpenAI (no equivalent client-side flag).
   cacheSystem?: boolean;
+  // Override the active provider. Almost never set in app code; left here so
+  // future tests / dev tools can force one transport.
+  provider?: AiProvider;
 };
 
 export class AIConfigError extends Error {
@@ -70,17 +84,28 @@ export async function* streamCompletion(
   opts: StreamCompletionOpts = {}
 ): AsyncIterable<string> {
   const transport = getTransport();
-  const model = opts.model ?? getAiModel() ?? DEFAULT_AI_MODEL;
   const maxTokens = opts.maxTokens ?? 800;
   const cacheSystem = opts.cacheSystem !== false;
+  const provider = opts.provider ?? getAiProvider();
 
-  if (transport === "direct") {
-    yield* streamDirect(systemPrompt, messages, model, maxTokens, cacheSystem);
+  if (transport !== "direct") {
+    // Future: server transport (proxied through /api/llm). Same SSE shape.
+    throw new AIConfigError("Server transport not yet implemented.");
+  }
+
+  if (provider === "openai") {
+    const model =
+      (opts.model as OpenAiModel | undefined) ??
+      getOpenAiModel() ??
+      DEFAULT_OPENAI_MODEL;
+    yield* streamOpenAi(systemPrompt, messages, model, maxTokens);
     return;
   }
 
-  // Future: server transport (proxied through /api/llm). Same SSE shape.
-  throw new AIConfigError("Server transport not yet implemented.");
+  // Default: Anthropic Claude (original path).
+  const model =
+    (opts.model as AiModel | undefined) ?? getAiModel() ?? DEFAULT_AI_MODEL;
+  yield* streamDirect(systemPrompt, messages, model, maxTokens, cacheSystem);
 }
 
 async function* streamDirect(
@@ -176,6 +201,92 @@ async function* streamDirect(
         }
       } catch {
         // Anthropic sometimes interleaves non-JSON lines; safe to skip.
+      }
+    }
+  }
+}
+
+// v5.10.5 — OpenAI streamer. Parallel to streamDirect: same input shape
+// (systemPrompt + messages), same output contract (yields text fragments as
+// they arrive). Uses OpenAI's Chat Completions SSE.
+async function* streamOpenAi(
+  systemPrompt: string,
+  messages: AIMessage[],
+  model: OpenAiModel,
+  maxTokens: number
+): AsyncIterable<string> {
+  const key = getOpenAiKey();
+  if (!key) {
+    throw new AIConfigError(
+      "No OpenAI API key configured. Open Settings → AI features to paste one."
+    );
+  }
+
+  // OpenAI's chat format: the system prompt is the first message with role
+  // 'system'; user/assistant turns follow. No client-side cache marker — the
+  // model gets the full system block every call.
+  const body = {
+    model,
+    stream: true,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system" as const, content: systemPrompt },
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ],
+  };
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new AIApiError(0, `Network error: ${(e as Error).message}`);
+  }
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = await res.text();
+    } catch {
+      // ignore
+    }
+    throw new AIApiError(res.status, detail.slice(0, 400) || res.statusText);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new AIApiError(0, "No response body.");
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE: events separated by blank lines, each event is "data: {json}" or
+    // the terminal "data: [DONE]". OpenAI delta shape: choices[0].delta.content
+    let idx;
+    while ((idx = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const dataLine = rawEvent.split("\n").find((l) => l.startsWith("data: "));
+      if (!dataLine) continue;
+      const payload = dataLine.slice(6).trim();
+      if (payload === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const chunk = parsed.choices?.[0]?.delta?.content ?? "";
+        if (chunk) yield chunk;
+      } catch {
+        // Defensive: skip any non-JSON keep-alive line.
       }
     }
   }
@@ -309,17 +420,24 @@ export const REVIEW_USER_PROMPT =
   "Don't restate the score. Don't moralize. Keep each paragraph to 2-3 sentences.";
 
 // Human-readable label for a model id, used in the review card badge.
-export function modelLabel(m: AiModel): string {
+// v5.10.5 — widened to cover OpenAI model ids too. Falls back to the raw id
+// for anything unknown so a future model addition doesn't crash the badge.
+export function modelLabel(m: AiModel | OpenAiModel | string): string {
   if (m === "claude-sonnet-4-6") return "Sonnet 4.6";
-  return "Haiku 4.5";
+  if (m === "claude-haiku-4-5-20251001") return "Haiku 4.5";
+  if (m === "gpt-4o-mini") return "GPT-4o mini";
+  if (m === "gpt-4o") return "GPT-4o";
+  return m;
 }
 
-// Friendly error message from an AIApiError status.
+// Friendly error message from an AIApiError status. v5.10.5 — provider name
+// pulled from getAiProvider so OpenAI users see "OpenAI", not "Anthropic".
 export function friendlyApiError(e: AIApiError): string {
+  const provider = getAiProvider() === "openai" ? "OpenAI" : "Anthropic";
   if (e.status === 401) return "Invalid API key — open Settings and re-paste it.";
-  if (e.status === 429) return "Rate-limited by Anthropic. Wait a moment and retry.";
+  if (e.status === 429) return `Rate-limited by ${provider}. Wait a moment and retry.`;
   if (e.status === 400) return "Bad request to the AI API. The cached system prompt may be too long.";
-  if (e.status >= 500) return "Anthropic returned a server error. Retry in a few seconds.";
+  if (e.status >= 500) return `${provider} returned a server error. Retry in a few seconds.`;
   if (e.status === 0) return e.message;
   return `AI error (${e.status}): ${e.message}`;
 }

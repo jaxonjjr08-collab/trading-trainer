@@ -72,6 +72,13 @@ const AI_MODEL_KEY = "trainer.aiModel.v1";
 const AI_CONSENT_AT_KEY = "trainer.aiConsentAt.v1";
 const AI_REVIEW_KEY = "trainer.aiReview.v1";
 const AI_CHAT_KEY = "trainer.aiChat.v1";
+// v5.10.5 — second provider: OpenAI/ChatGPT. Stored in parallel keys so the
+// user can keep both keys saved and just flip the provider radio. Selected
+// provider is in AI_PROVIDER_KEY; missing/invalid falls back to anthropic so
+// pre-v5.10.5 saves keep working.
+const AI_PROVIDER_KEY = "trainer.aiProvider.v1";
+const OPENAI_KEY_KEY = "trainer.openAiKey.v1";
+const OPENAI_MODEL_KEY = "trainer.openAiModel.v1";
 // v2.9 — User-set defaults that prefill new attempts. Removes the friction of
 // re-entering risk %, leverage, and account size on every scenario. Falls back
 // to the historic in-form defaults (1% / 3× / $1,000) when unset.
@@ -144,6 +151,9 @@ const ALL_KEYS = [
   AI_ENABLED_KEY,
   AI_KEY_KEY,
   AI_MODEL_KEY,
+  AI_PROVIDER_KEY,
+  OPENAI_KEY_KEY,
+  OPENAI_MODEL_KEY,
   AI_CONSENT_AT_KEY,
   AI_REVIEW_KEY,
   AI_CHAT_KEY,
@@ -537,6 +547,61 @@ export function getAiModel(): AiModel {
 export function setAiModel(m: AiModel): void {
   if (!isBrowser()) return;
   window.localStorage.setItem(AI_MODEL_KEY, m);
+}
+
+// v5.10.5 — AI provider toggle (Anthropic Claude vs OpenAI ChatGPT). The
+// existing Anthropic helpers above stay byte-identical; below are parallel
+// OpenAI helpers plus a getter/setter for the selected provider. Code that
+// streams completions calls getAiProvider() and routes to the right transport.
+
+export type AiProvider = "anthropic" | "openai";
+export const DEFAULT_AI_PROVIDER: AiProvider = "anthropic";
+
+export function getAiProvider(): AiProvider {
+  if (!isBrowser()) return DEFAULT_AI_PROVIDER;
+  const raw = window.localStorage.getItem(AI_PROVIDER_KEY);
+  if (raw === "openai") return "openai";
+  return DEFAULT_AI_PROVIDER;
+}
+
+export function setAiProvider(p: AiProvider): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(AI_PROVIDER_KEY, p);
+}
+
+export function getOpenAiKey(): string {
+  if (!isBrowser()) return "";
+  return window.localStorage.getItem(OPENAI_KEY_KEY) ?? "";
+}
+
+export function setOpenAiKey(key: string): void {
+  if (!isBrowser()) return;
+  const trimmed = key.trim();
+  if (trimmed.length === 0) window.localStorage.removeItem(OPENAI_KEY_KEY);
+  else window.localStorage.setItem(OPENAI_KEY_KEY, trimmed);
+}
+
+export function clearOpenAiKey(): void {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(OPENAI_KEY_KEY);
+}
+
+// OpenAI model ids. Mirrors the Anthropic AiModel union: a tiny set of
+// curated, currently-available models so the picker stays simple. gpt-4o-mini
+// is the cheap/fast default; gpt-4o is the deeper option, parallel to Sonnet.
+export type OpenAiModel = "gpt-4o-mini" | "gpt-4o";
+export const DEFAULT_OPENAI_MODEL: OpenAiModel = "gpt-4o-mini";
+
+export function getOpenAiModel(): OpenAiModel {
+  if (!isBrowser()) return DEFAULT_OPENAI_MODEL;
+  const raw = window.localStorage.getItem(OPENAI_MODEL_KEY);
+  if (raw === "gpt-4o") return "gpt-4o";
+  return DEFAULT_OPENAI_MODEL;
+}
+
+export function setOpenAiModel(m: OpenAiModel): void {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(OPENAI_MODEL_KEY, m);
 }
 
 export function hasAiConsent(): boolean {

@@ -11,10 +11,14 @@ import {
 import { getDailyGoal, setDailyGoal } from "@/lib/streak";
 import {
   clearAiKey,
+  clearOpenAiKey,
   clearWatchMeDone,
   getAiKey,
   getAiModel,
+  getAiProvider,
   getDecisionDefaults,
+  getOpenAiKey,
+  getOpenAiModel,
   hasAiConsent,
   isAiEnabled,
   isForceLessonsEnabled,
@@ -24,10 +28,15 @@ import {
   setAiEnabled,
   setAiKey,
   setAiModel,
+  setAiProvider,
   setDecisionDefaults,
   setForceLessonsEnabled,
+  setOpenAiKey,
+  setOpenAiModel,
   type AiModel,
+  type AiProvider,
   type DecisionDefaults,
+  type OpenAiModel,
 } from "@/lib/storage";
 import AIConsentModal from "./AIConsentModal";
 
@@ -44,9 +53,15 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
   const [watchMeDone, setWatchMeDoneState] = useState(false);
   // v2.5 — AI features. State mirrors localStorage so the panel UI is
   // controlled. Saving fires on every change so there's no "Save" button.
+  // v5.10.5 — provider toggle + parallel OpenAI key/model state. Each
+  // provider's key is kept independently so flipping the radio doesn't blow
+  // away whichever key you typed for the other one.
   const [aiEnabled, setAiEnabledState] = useState(false);
+  const [aiProvider, setAiProviderState] = useState<AiProvider>("anthropic");
   const [aiKey, setAiKeyState] = useState("");
   const [aiModel, setAiModelState] = useState<AiModel>("claude-haiku-4-5-20251001");
+  const [openAiKey, setOpenAiKeyState] = useState("");
+  const [openAiModel, setOpenAiModelState] = useState<OpenAiModel>("gpt-4o-mini");
   const [aiConsent, setAiConsentState] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -63,8 +78,11 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
     setForceLessonsState(isForceLessonsEnabled());
     setWatchMeDoneState(isWatchMeDone());
     setAiEnabledState(isAiEnabled());
+    setAiProviderState(getAiProvider());
     setAiKeyState(getAiKey());
     setAiModelState(getAiModel());
+    setOpenAiKeyState(getOpenAiKey());
+    setOpenAiModelState(getOpenAiModel());
     setAiConsentState(hasAiConsent());
     setDefaultsState(getDecisionDefaults());
   }, []);
@@ -92,7 +110,7 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
     setAiEnabled(true);
     setAiEnabledState(true);
     setShowConsentModal(false);
-    show("good", "AI features enabled. Paste your Anthropic API key below to start.");
+    show("good", "AI features enabled. Pick a provider and paste your API key below to start.");
   }
 
   function handleConsentDismiss() {
@@ -115,6 +133,28 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
     const v = e.target.value as AiModel;
     setAiModelState(v);
     setAiModel(v);
+  }
+
+  // v5.10.5 — OpenAI handlers + provider switch. Switching provider just
+  // updates the radio + storage; both keys stay saved on their own slots.
+  function handleProviderChange(p: AiProvider) {
+    setAiProviderState(p);
+    setAiProvider(p);
+  }
+  function handleOpenAiKeyChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setOpenAiKeyState(v);
+    setOpenAiKey(v);
+  }
+  function handleClearOpenAiKey() {
+    clearOpenAiKey();
+    setOpenAiKeyState("");
+    show("muted", "OpenAI key cleared.");
+  }
+  function handleOpenAiModelChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const v = e.target.value as OpenAiModel;
+    setOpenAiModelState(v);
+    setOpenAiModel(v);
   }
 
   function handleRevokeAi() {
@@ -366,59 +406,144 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
               <span className="flex-1">
                 <span className="text-text font-semibold">Enable AI review &amp; coach</span>
                 <span className="block text-xs text-muted leading-snug mt-0.5">
-                  Adds an AI-written review after each submit and a follow-up chat. Requires your own Anthropic API key.
-                  Off by default. Each call sends your decision and the scenario to Anthropic.
+                  Adds an AI-written review after each submit and a follow-up chat. Requires your own API key —
+                  Anthropic (Claude) or OpenAI (ChatGPT). Off by default. Each call sends your decision and the
+                  scenario to the provider you choose.
                 </span>
               </span>
             </label>
 
             {aiEnabled && (
               <>
+                {/* v5.10.5 — provider picker. Radio over a buttons-look so it's
+                    obvious you're choosing ONE service, not toggling features. */}
                 <div className="space-y-1.5">
-                  <label className="text-xs text-muted block">Anthropic API key</label>
-                  <div className="flex gap-2">
-                    <input
-                      type={showKey ? "text" : "password"}
-                      value={aiKey}
-                      onChange={handleAiKeyChange}
-                      placeholder="sk-ant-..."
-                      autoComplete="off"
-                      className="flex-1 bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md font-mono"
-                    />
+                  <label className="text-xs text-muted block">Provider</label>
+                  <div className="inline-flex rounded-md border border-line overflow-hidden">
                     <button
                       type="button"
-                      onClick={() => setShowKey((v) => !v)}
-                      className="text-xs border border-line bg-panel2 px-2 py-1 rounded-md hover:bg-panel"
+                      onClick={() => handleProviderChange("anthropic")}
+                      className={`text-xs font-semibold px-3 py-1.5 ${
+                        aiProvider === "anthropic"
+                          ? "bg-accent/20 text-accent"
+                          : "bg-panel2 text-muted hover:text-text"
+                      }`}
+                      aria-pressed={aiProvider === "anthropic"}
                     >
-                      {showKey ? "Hide" : "Show"}
+                      Anthropic (Claude)
                     </button>
-                    {aiKey.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearKey}
-                        className="text-xs text-bad border border-bad/40 bg-bad/5 px-2 py-1 rounded-md hover:bg-bad/10"
-                      >
-                        Clear
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange("openai")}
+                      className={`text-xs font-semibold px-3 py-1.5 border-l border-line ${
+                        aiProvider === "openai"
+                          ? "bg-accent/20 text-accent"
+                          : "bg-panel2 text-muted hover:text-text"
+                      }`}
+                      aria-pressed={aiProvider === "openai"}
+                    >
+                      OpenAI (ChatGPT)
+                    </button>
                   </div>
-                  <p className="text-[10px] text-muted">
-                    Get a key at <span className="font-mono">console.anthropic.com</span>. Stored locally — anyone with
-                    access to this browser can read it.
-                  </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted block">Model</label>
-                  <select
-                    value={aiModel}
-                    onChange={handleAiModelChange}
-                    className="bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md"
-                  >
-                    <option value="claude-haiku-4-5-20251001">Haiku 4.5 — fast, ~$0.005/review</option>
-                    <option value="claude-sonnet-4-6">Sonnet 4.6 — deeper, ~$0.02/review</option>
-                  </select>
-                </div>
+                {aiProvider === "anthropic" ? (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted block">Anthropic API key</label>
+                      <div className="flex gap-2">
+                        <input
+                          type={showKey ? "text" : "password"}
+                          value={aiKey}
+                          onChange={handleAiKeyChange}
+                          placeholder="sk-ant-..."
+                          autoComplete="off"
+                          className="flex-1 bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowKey((v) => !v)}
+                          className="text-xs border border-line bg-panel2 px-2 py-1 rounded-md hover:bg-panel"
+                        >
+                          {showKey ? "Hide" : "Show"}
+                        </button>
+                        {aiKey.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearKey}
+                            className="text-xs text-bad border border-bad/40 bg-bad/5 px-2 py-1 rounded-md hover:bg-bad/10"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted">
+                        Get a key at <span className="font-mono">console.anthropic.com</span>. Stored locally — anyone with
+                        access to this browser can read it.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted block">Model</label>
+                      <select
+                        value={aiModel}
+                        onChange={handleAiModelChange}
+                        className="bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md"
+                      >
+                        <option value="claude-haiku-4-5-20251001">Haiku 4.5 — fast, ~$0.005/review</option>
+                        <option value="claude-sonnet-4-6">Sonnet 4.6 — deeper, ~$0.02/review</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted block">OpenAI API key</label>
+                      <div className="flex gap-2">
+                        <input
+                          type={showKey ? "text" : "password"}
+                          value={openAiKey}
+                          onChange={handleOpenAiKeyChange}
+                          placeholder="sk-..."
+                          autoComplete="off"
+                          className="flex-1 bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowKey((v) => !v)}
+                          className="text-xs border border-line bg-panel2 px-2 py-1 rounded-md hover:bg-panel"
+                        >
+                          {showKey ? "Hide" : "Show"}
+                        </button>
+                        {openAiKey.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearOpenAiKey}
+                            className="text-xs text-bad border border-bad/40 bg-bad/5 px-2 py-1 rounded-md hover:bg-bad/10"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted">
+                        Get a key at <span className="font-mono">platform.openai.com/api-keys</span>. Stored locally —
+                        anyone with access to this browser can read it.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted block">Model</label>
+                      <select
+                        value={openAiModel}
+                        onChange={handleOpenAiModelChange}
+                        className="bg-panel border border-line text-text text-xs px-2 py-1.5 rounded-md"
+                      >
+                        <option value="gpt-4o-mini">GPT-4o mini — fast, ~$0.005/review</option>
+                        <option value="gpt-4o">GPT-4o — deeper, ~$0.05/review</option>
+                      </select>
+                    </div>
+                  </>
+                )}
 
                 <details className="text-[11px] text-muted leading-snug">
                   <summary className="cursor-pointer text-text">What gets sent on each call?</summary>

@@ -16,7 +16,10 @@ import {
   clearCachedReview,
   getAiKey,
   getAiModel,
+  getAiProvider,
   getCachedReview,
+  getOpenAiKey,
+  getOpenAiModel,
   hasAiConsent,
   isAiEnabled,
 } from "@/lib/storage";
@@ -52,10 +55,15 @@ export default function AIReviewCard({ attempt, scenario }: Props) {
         setState({ kind: "idle" });
         return;
       }
-      if (!getAiKey()) {
+      // v5.10.5 — check the right key for the active provider.
+      const keyForProvider =
+        getAiProvider() === "openai" ? getOpenAiKey() : getAiKey();
+      if (!keyForProvider) {
+        const providerName =
+          getAiProvider() === "openai" ? "OpenAI" : "Anthropic";
         setState({
           kind: "error",
-          message: "No Anthropic API key configured. Open Settings → AI features to paste one.",
+          message: `No ${providerName} API key configured. Open Settings → AI features to paste one.`,
         });
         return;
       }
@@ -63,7 +71,9 @@ export default function AIReviewCard({ attempt, scenario }: Props) {
 
       const system = buildSystemPrompt(scenario, attempt);
       const messages = [{ role: "user" as const, content: REVIEW_USER_PROMPT }];
-      const model = getAiModel();
+      // v5.10.5 — provider-aware model id for the card badge and the cache.
+      const provider = getAiProvider();
+      const model = provider === "openai" ? getOpenAiModel() : getAiModel();
 
       setState({ kind: "loading", text: "" });
       try {

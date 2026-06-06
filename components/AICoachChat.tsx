@@ -15,8 +15,10 @@ import {
   clearChatHistory,
   getAiKey,
   getAiModel,
+  getAiProvider,
   getCachedReview,
   getChatHistory,
+  getOpenAiKey,
   hasAiConsent,
   isAiEnabled,
   type AiChatMessage,
@@ -64,8 +66,13 @@ export default function AICoachChat({ attempt, scenario }: Props) {
     const trimmed = input.trim();
     if (trimmed.length === 0 || streaming) return;
     if (!enabledLive) return;
-    if (!getAiKey()) {
-      setError("No Anthropic API key configured. Open Settings → AI features.");
+    // v5.10.5 — check the key for the active provider.
+    const keyForProvider =
+      getAiProvider() === "openai" ? getOpenAiKey() : getAiKey();
+    if (!keyForProvider) {
+      const providerName =
+        getAiProvider() === "openai" ? "OpenAI" : "Anthropic";
+      setError(`No ${providerName} API key configured. Open Settings → AI features.`);
       return;
     }
 
