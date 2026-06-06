@@ -11,24 +11,12 @@ import {
 } from "./types";
 import { MISTAKE_TAGS } from "./mistakes";
 import { scoreManagement } from "./scoring-management";
-
-const THESIS_KEYWORDS = [
-  "support",
-  "resistance",
-  "trend",
-  "breakout",
-  "breakdown",
-  "range",
-  "wick",
-  "rejection",
-  "pullback",
-  "liquidity",
-  "volume",
-  "structure",
-  "swing",
-  "higher high",
-  "lower low",
-];
+import {
+  hasStructureWord,
+  hasLevelReference,
+  hasDirectionWord,
+  hasInvalidationHook,
+} from "./thesis-critique";
 
 function rrRatio(decision: Decision): number | null {
   if (
@@ -383,34 +371,80 @@ function scoreTarget(scenario: Scenario, d: Decision): ScoreCategoryResult {
   return { id: "target", label: "Target realism", points, max, note, tags, positive };
 }
 
+// v5.9.7 — stricter thesis grading. The old version was length-gated: 60+
+// characters plus any single keyword ("trend") earned full marks, so filler
+// padded with one structure word scored 10/10. The new rubric grades on what a
+// reviewable thesis actually needs — a structure reference AND a specific
+// price, with a direction word for the last point. Full marks now require all
+// three; a hunch with neither structure nor a level is flagged with no_thesis.
+//
+//   structure word         → +4   (e.g. "support", "higher low", "pullback")
+//   specific price/level    → +4   (e.g. "$58.5k", "139.50", "60,000")
+//   direction word          → +2   (e.g. "long", "fades the rally", "up")
+//
+// So: structure + level + direction = 10; structure + level = 8; one of the
+// two (+direction) tops out at 6; a pure feeling scores 2.
 function scoreThesis(d: Decision): ScoreCategoryResult {
   const max = 10;
   const tags: MistakeTag[] = [];
-  const text = (d.thesis || "").trim().toLowerCase();
-  let points = 0;
-  let note = "";
-  let positive = false;
+  const text = (d.thesis || "").trim();
 
   if (text.length === 0) {
-    note = "No thesis written.";
-    tags.push("no_thesis");
-  } else if (text.length < 20) {
-    points = 0;
-    note = "Thesis too short to be reviewable later.";
-    tags.push("no_thesis");
-  } else if (text.length < 60) {
-    points = 5;
-    note = "Thesis is brief — okay, but more detail makes review more useful.";
+    return {
+      id: "thesis",
+      label: "Thesis quality",
+      points: 0,
+      max,
+      note: "No thesis written. Even one sentence naming a level keeps you honest.",
+      tags: ["no_thesis"],
+      positive: false,
+    };
+  }
+  if (text.length < 20) {
+    return {
+      id: "thesis",
+      label: "Thesis quality",
+      points: 0,
+      max,
+      note: "Thesis too short to be reviewable later.",
+      tags: ["no_thesis"],
+      positive: false,
+    };
+  }
+
+  const structure = hasStructureWord(text);
+  const level = hasLevelReference(text);
+  const direction = hasDirectionWord(text);
+
+  // Neither structure nor a level — it's a hunch, not a thesis.
+  if (!structure && !level) {
+    return {
+      id: "thesis",
+      label: "Thesis quality",
+      points: 2,
+      max,
+      note:
+        "Reads like a hunch. Name a structure (support, swing low, the trend) AND a specific price so the idea is checkable later.",
+      tags: ["no_thesis"],
+      positive: false,
+    };
+  }
+
+  const points =
+    (structure ? 4 : 0) + (level ? 4 : 0) + (direction ? 2 : 0);
+  const positive = structure && level; // strong = structure + a real price
+
+  let note: string;
+  if (structure && level && direction) {
+    note = "Strong: names a structure, a specific price, and a direction. Fully reviewable.";
+  } else if (!level) {
+    note =
+      "Good structure, but no specific price. Cite the level (e.g. \"support at $58.5k\") for full marks.";
+  } else if (!structure) {
+    note =
+      "Names a price but not the structure behind it. Say what the level IS (support, swing high, range edge).";
   } else {
-    const refs = THESIS_KEYWORDS.filter((k) => text.includes(k));
-    if (refs.length >= 1) {
-      points = max;
-      note = `Thesis references concrete structure (${refs.slice(0, 3).join(", ")}).`;
-      positive = true;
-    } else {
-      points = 6;
-      note = "Thesis is detailed but doesn't reference a specific level or structure word.";
-    }
+    note = "Solid — add a direction word (long / fades / continues up) to make the bias explicit.";
   }
 
   return { id: "thesis", label: "Thesis quality", points, max, note, tags, positive };
@@ -553,29 +587,61 @@ function scoreChartTools(
   };
 }
 
+// v5.9.7 — was length-only: any 20 characters earned the full 5, so "I think
+// it might go down" scored the same as "close below the $58.5k swing low."
+// Now full marks require BOTH a structural hook (close below / break of /
+// loss of) AND a specific price; one of the two earns partial; a feeling with
+// neither still flags no_invalidation.
 function scoreInvalidation(d: Decision): ScoreCategoryResult {
   const max = 5;
-  const tags: MistakeTag[] = [];
   const text = (d.invalidation || "").trim();
-  if (text.length >= 20) {
+
+  if (text.length < 20) {
+    return {
+      id: "invalidation",
+      label: "Invalidation",
+      points: 0,
+      max,
+      note: "Without a written invalidation, losses become 'just hold a bit longer'.",
+      tags: ["no_invalidation"],
+      positive: false,
+    };
+  }
+
+  const hook = hasInvalidationHook(text);
+  const level = hasLevelReference(text);
+
+  if (hook && level) {
     return {
       id: "invalidation",
       label: "Invalidation",
       points: max,
       max,
-      note: "You wrote down what would prove the trade wrong.",
-      tags,
+      note: "Clean: a structural event at a specific price. Pre-committed, not negotiable.",
+      tags: [],
       positive: true,
     };
   }
-  tags.push("no_invalidation");
+  if (hook || level) {
+    return {
+      id: "invalidation",
+      label: "Invalidation",
+      points: 3,
+      max,
+      note: hook
+        ? "Names the event but no price — add the level (e.g. \"close below $58.5k\")."
+        : "Names a price but not the event — say what happens there (\"close below\", \"loses\").",
+      tags: [],
+      positive: false,
+    };
+  }
   return {
     id: "invalidation",
     label: "Invalidation",
-    points: 0,
+    points: 1,
     max,
-    note: "Without a written invalidation, losses become 'just hold a bit longer'.",
-    tags,
+    note: "Reads like a feeling. Real invalidation cites a price or a 'close below X' event.",
+    tags: ["no_invalidation"],
     positive: false,
   };
 }

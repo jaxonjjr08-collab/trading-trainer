@@ -7,6 +7,7 @@ import {
   atr,
   bollingerBands,
   ema,
+  emaFull,
   keltnerChannels,
   macd,
   rsi,
@@ -63,6 +64,32 @@ describe("ema", () => {
 
   it("handles short input gracefully", () => {
     expect(ema(mkCandles([1, 2]), 5)).toEqual([null, null]);
+  });
+});
+
+describe("emaFull", () => {
+  it("emits a value at every candle even when shorter than the period", () => {
+    // The whole point: a 4-candle chart still produces an EMA(200) line.
+    const out = emaFull(mkCandles([1, 2, 3, 4]), 200);
+    expect(out).toHaveLength(4);
+    expect(out.every((v) => v != null)).toBe(true);
+    expect(out[0]).toBe(1); // seeded from the first close
+  });
+
+  it("converges to the same value as ema() once warmed up", () => {
+    const closes = Array.from({ length: 120 }, (_, i) => 100 + i);
+    const strict = ema(mkCandles(closes), 20);
+    const full = emaFull(mkCandles(closes), 20);
+    // The two seed differently (strict from the period-20 SMA, full from the
+    // first close), but the gap decays geometrically. ~100 bars past warmup
+    // the relative difference is microscopic.
+    const a = full[119] as number;
+    const b = strict[119] as number;
+    expect(Math.abs(a - b) / b).toBeLessThan(1e-5);
+  });
+
+  it("returns all-null only for empty input", () => {
+    expect(emaFull([], 5)).toEqual([]);
   });
 });
 

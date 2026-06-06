@@ -79,8 +79,10 @@ describe("INDICATOR_META", () => {
     // v5.1.1 — super_guppy is excluded: its "value" is a state chip, not a
     // number, so its format() is intentionally a no-op string that the
     // legend and tooltip never read (they branch on the super_guppy id and
-    // render the chip instead).
-    const numericLineIds = ALL_LINE_IDS.filter((id) => id !== "super_guppy");
+    // render the chip instead). v5.9.4 — chris_guppy is the same kind of
+    // ribbon and is excluded for the same reason.
+    const RIBBON_IDS = new Set(["super_guppy", "chris_guppy"]);
+    const numericLineIds = ALL_LINE_IDS.filter((id) => !RIBBON_IDS.has(id));
     for (const id of numericLineIds) {
       const meta = INDICATOR_META[id];
       expect(meta.format(42).length).toBeGreaterThan(0);

@@ -88,6 +88,24 @@ function hasAnyWord(text: string, words: string[]): boolean {
   return words.some((w) => lower.includes(w));
 }
 
+// v5.9.7 — exported single-source detectors. lib/scoring.ts uses these so the
+// thesis SCORE and the inline thesis-check CARD agree on what counts as a
+// structure reference, a level, a direction, and an invalidation hook. Before
+// this, the scorer had its own shorter keyword list and graded far more
+// leniently than the card implied.
+export function hasStructureWord(text: string): boolean {
+  return hasAnyWord(text, STRUCTURE_WORDS);
+}
+export function hasDirectionWord(text: string): boolean {
+  return hasAnyWord(text, DIRECTION_WORDS);
+}
+export function hasInvalidationHook(text: string): boolean {
+  return hasAnyWord(text, INVALIDATION_HOOKS);
+}
+export function hasLevelReference(text: string): boolean {
+  return NUMBER_LIKE.test(text);
+}
+
 export function critique(thesis: string, invalidation: string): ThesisCritique {
   const gaps: ThesisGap[] = [];
   const t = thesis.trim();

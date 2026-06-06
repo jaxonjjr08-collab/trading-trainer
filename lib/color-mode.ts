@@ -2,7 +2,7 @@
 // trend-state-colored chart tools.
 //
 // Two modes:
-//   - "colorblind"  (default) — blue / orange / gray. Safe across all common
+//   - "colorblind"  (default) — blue / red / gray. Safe across all common
 //                                color vision deficiencies (deuteranopia,
 //                                protanopia, tritanopia).
 //   - "standard"             — green / red / amber. Classic financial chart
@@ -25,13 +25,13 @@ export type ColorMode = "colorblind" | "standard";
 export const COLOR_MODES: ColorMode[] = ["colorblind", "standard"];
 
 export const COLOR_MODE_LABELS: Record<ColorMode, string> = {
-  colorblind: "Colorblind-friendly (blue / orange)",
+  colorblind: "Colorblind-friendly (blue / red)",
   standard: "Standard (green / red)",
 };
 
 export const COLOR_MODE_DESCRIPTIONS: Record<ColorMode, string> = {
   colorblind:
-    "Trend tools use blue (uptrend) and orange (downtrend). Safe for red/green colorblindness; reads cleanly for everyone.",
+    "Trend tools use blue (uptrend) and red (downtrend). Blue vs red stays distinguishable for red/green colorblindness.",
   standard:
     "Trend tools use green (uptrend) and red (downtrend). The classic financial chart palette. Not readable for ~8% of men with red/green colorblindness.",
 };
@@ -72,12 +72,16 @@ const COLORBLIND_PALETTES: Record<GuppyTrendState, Palette> = {
     longEnd: "#0c4a6e", // sky-900
     representative: "#2563eb",
   },
+  // v5.9.10 — was orange. Switched to red at the user's request ("blue and
+  // red, red obviously for bear"). Blue (bull) vs red (bear) stays
+  // distinguishable for the common red/green deficiencies — the pairing the
+  // colourblind palette has to avoid is red-vs-green, not red-vs-blue.
   bear: {
-    shortStart: "#fed7aa", // orange-200
-    shortEnd: "#ea580c", // orange-600
-    longStart: "#9a3412", // orange-800
-    longEnd: "#431407", // orange-950
-    representative: "#ea580c",
+    shortStart: "#fecaca", // red-200
+    shortEnd: "#dc2626", // red-600
+    longStart: "#991b1b", // red-800
+    longEnd: "#450a0a", // red-950
+    representative: "#dc2626",
   },
   neutral: {
     shortStart: "#e2e8f0", // slate-200
@@ -175,6 +179,20 @@ export function clusterColors(
     out.push(interpolateColor(start, end, i / (count - 1), opacity));
   }
   return out;
+}
+
+// v5.9.9 — flat alternative to clusterColors. Returns `count` copies of a
+// single colour (optionally with alpha) so the ribbon paints as one solid hue
+// instead of a pale→deep gradient. The band's width still reads because the
+// translucent strands compound where they overlap, but there's only one colour
+// — which also makes the ribbon match the legend's state chip exactly.
+export function solidColors(
+  color: string,
+  count: number,
+  opacity = 1
+): string[] {
+  const c = opacity < 1 ? interpolateColor(color, color, 0, opacity) : color;
+  return new Array(Math.max(0, count)).fill(c);
 }
 
 // Trader-facing labels for the legend chip and tooltip headline. "MIXED" is

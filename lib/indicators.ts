@@ -47,6 +47,32 @@ export function ema(candles: Candle[], period: number): (number | null)[] {
   return out;
 }
 
+// v5.9.8 — Best-effort EMA that emits a value at EVERY candle, seeded from the
+// first close. Unlike ema() (which returns nulls until `period` candles exist,
+// matching TradingView's warmup), this never returns null while there's data.
+//
+// Why it exists: Practice scenarios carry only 15–90 candles, but the Super
+// Guppy ribbon uses periods up to 61 and the EMA overlay includes EMA(200).
+// With the strict ema(), those long EMAs are all-null on a short chart, so the
+// ribbon's trend-state classifier was permanently stuck on "neutral" (gray)
+// and EMA 50/200 never drew. emaFull seeds from candle 0 so the line always
+// renders; during the first `period` bars the value is an approximation that
+// converges to the true EMA, and from then on the two agree. Used only for the
+// overlay/ribbon rendering — MACD and the canonical ema() are untouched so
+// their TradingView-faithful warmup (and the tests pinning it) stay intact.
+export function emaFull(candles: Candle[], period: number): (number | null)[] {
+  const out: (number | null)[] = new Array(candles.length).fill(null);
+  if (period <= 0 || candles.length === 0) return out;
+  const alpha = 2 / (period + 1);
+  let prev = candles[0].close;
+  out[0] = prev;
+  for (let i = 1; i < candles.length; i++) {
+    prev = alpha * candles[i].close + (1 - alpha) * prev;
+    out[i] = prev;
+  }
+  return out;
+}
+
 // RSI using Wilder's smoothing. Returns values in [0, 100] for indices past the
 // warmup; nulls during warmup (the first `period` candles).
 export function rsi(candles: Candle[], period = 14): (number | null)[] {

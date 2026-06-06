@@ -203,7 +203,7 @@ export default function ThemeToggle() {
                         active ? "text-accent" : "text-text"
                       }`}
                     >
-                      {m === "standard" ? "Green / Red" : "Blue / Orange"}
+                      {m === "standard" ? "Green / Red" : "Blue / Red"}
                     </span>
                   </button>
                 );

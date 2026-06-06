@@ -6,7 +6,7 @@
 // usual price types. Defaults reproduce the TV indicator's defaults exactly.
 
 import type { Candle } from "./types";
-import { ema } from "./indicators";
+import { emaFull } from "./indicators";
 
 export type ChrisGuppySource =
   | "close"
@@ -109,15 +109,17 @@ export function computeChrisGuppy(
   params: ChrisGuppyParams
 ): ChrisGuppyValues {
   const src = sourceSeries(candles, params.source);
-  const fast = params.fast.map((p) => ema(src, Math.max(1, Math.round(p))));
-  const slow = params.slow.map((p) => ema(src, Math.max(1, Math.round(p))));
+  // v5.9.8 — emaFull so the (up to period-70) slow ribbon still renders and
+  // colors on short Practice scenarios. See lib/indicators-guppy.ts.
+  const fast = params.fast.map((p) => emaFull(src, Math.max(1, Math.round(p))));
+  const slow = params.slow.map((p) => emaFull(src, Math.max(1, Math.round(p))));
   return {
     fast,
     slow,
     fastAvg: params.showAverageCurves ? average(fast) : null,
     slowAvg: params.showAverageCurves ? average(slow) : null,
     ema200: params.show200 || params.filterWith200
-      ? ema(src, Math.max(1, Math.round(params.ema200Length)))
+      ? emaFull(src, Math.max(1, Math.round(params.ema200Length)))
       : null,
   };
 }

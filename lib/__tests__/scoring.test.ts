@@ -91,6 +91,50 @@ describe("scoreDecision", () => {
   });
 });
 
+// v5.9.7 — lock in the stricter thesis + invalidation grading so a future
+// refactor can't quietly make it lenient again.
+describe("scoreDecision: stricter thesis grading (v5.9.7)", () => {
+  function thesisPoints(d: Partial<Decision>): number {
+    const score = scoreDecision(SCENARIOS[0], tradeDecision(d));
+    return score.breakdown.find((b) => b.id === "thesis")!.points;
+  }
+  function invalidationPoints(d: Partial<Decision>): number {
+    const score = scoreDecision(SCENARIOS[0], tradeDecision(d));
+    return score.breakdown.find((b) => b.id === "invalidation")!.points;
+  }
+
+  it("scores a pure hunch low and flags no_thesis", () => {
+    const score = scoreDecision(
+      SCENARIOS[0],
+      tradeDecision({ thesis: "I feel like this one pumps soon, looks good to me." })
+    );
+    const thesis = score.breakdown.find((b) => b.id === "thesis")!;
+    expect(thesis.points).toBeLessThanOrEqual(2);
+    expect(thesis.tags).toContain("no_thesis");
+  });
+
+  it("does not give full marks for structure without a specific price", () => {
+    // Structure words but no number — strong on shape, missing the level.
+    expect(
+      thesisPoints({ thesis: "Pullback into support inside the uptrend, continuation expected." })
+    ).toBeLessThan(10);
+  });
+
+  it("awards full marks only for structure + level + direction", () => {
+    expect(
+      thesisPoints({
+        thesis:
+          "Long the pullback to support at $58,500 inside the uptrend; higher lows holding.",
+      })
+    ).toBe(10);
+  });
+
+  it("requires both a hook and a price for full invalidation marks", () => {
+    expect(invalidationPoints({ invalidation: "It would look weak and I'd get nervous here." })).toBeLessThanOrEqual(1);
+    expect(invalidationPoints({ invalidation: "Close below the swing low at $58,500." })).toBe(5);
+  });
+});
+
 describe("scoreDecision: chart_tools category (v4.0.3)", () => {
   it("is absent when scenario has no availableIndicators", () => {
     const score = scoreDecision(SCENARIOS[0], tradeDecision());

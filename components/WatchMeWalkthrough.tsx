@@ -95,14 +95,28 @@ export default function WatchMeWalkthrough({
   scenario,
   onSubmit,
   onSkip,
+  onPreviewChange,
 }: {
   scenario: Scenario;
   onSubmit: (d: Decision) => void;
   onSkip: () => void;
+  // v5.9.7 — emits the cumulative decision so the Practice chart can draw the
+  // entry/stop/TP lines live as each step is narrated. The whole point of the
+  // walkthrough is "showing what to do" — the lines appearing on the chart at
+  // the exact prices being described is what makes it land.
+  onPreviewChange?: (fields: Partial<Decision>) => void;
 }) {
   const [stepIdx, setStepIdx] = useState(0);
   const step = STEPS[stepIdx];
   const isLast = stepIdx === STEPS.length - 1;
+
+  // Push the current step's cumulative fields up to the chart whenever the
+  // step changes (and on mount). Clears on unmount so stale lines don't linger.
+  useEffect(() => {
+    onPreviewChange?.(step.fields ?? {});
+    return () => onPreviewChange?.({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIdx]);
 
   // Keyboard support: arrows + Esc to skip. Matches Tutorial.tsx UX.
   useEffect(() => {
@@ -149,7 +163,9 @@ export default function WatchMeWalkthrough({
           </div>
           <h2 className="text-lg font-bold mt-0.5">{step.title}</h2>
           <p className="text-[11px] text-muted mt-1">
-            Your first attempt is on rails — I fill the form, you read the reasoning. After this, you'll do the next one yourself.
+            On rails — I fill the form, you read the reasoning. Watch the chart:
+            the entry, stop, and target lines appear where I describe them. After
+            this, you'll do the next one yourself.
           </p>
         </div>
         <button

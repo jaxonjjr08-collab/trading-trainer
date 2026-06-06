@@ -61,25 +61,26 @@ describe("computeGuppy", () => {
     for (const s of out.long) expect(s).toHaveLength(candles.length);
   });
 
-  it("warmup nulls on the longest long EMA cover at least its period length", () => {
-    const candles = mkCandles(Array.from({ length: 100 }, (_, i) => 100 + i));
+  // v5.9.8 — the ribbon now uses emaFull so it renders on short Practice
+  // scenarios. Every ribbon EMA must emit a value at every candle (no warmup
+  // gap), otherwise the trend-state classifier gets stuck on neutral/gray.
+  it("emits a value at every candle so the ribbon renders on short series", () => {
+    const candles = mkCandles(Array.from({ length: 40 }, (_, i) => 100 + i));
     const out = computeGuppy(candles);
-    // EMA(61) seeds with the SMA of the first 61 values; index 60 is the
-    // earliest non-null. Anything < 60 must be null.
-    const ema61 = out.long[out.long.length - 1];
-    for (let i = 0; i < 60; i++) {
-      expect(ema61[i]).toBeNull();
+    for (const series of [...out.short, ...out.long]) {
+      expect(series).toHaveLength(candles.length);
+      expect(series.every((v) => v != null)).toBe(true);
     }
-    expect(ema61[60]).not.toBeNull();
   });
 });
 
 describe("guppyTrendStateAt", () => {
-  it("returns neutral when not all EMAs have settled", () => {
+  it("classifies a clean uptrend as bull even on a short sub-period series", () => {
+    // 50 candles is shorter than the longest period (61); with the old strict
+    // EMA this was stuck on neutral. emaFull lets it color correctly.
     const candles = mkCandles(Array.from({ length: 50 }, (_, i) => 100 + i));
     const out = computeGuppy(candles);
-    // EMA(61) is still null at index 49 → neutral.
-    expect(guppyTrendStateAt(out, 49)).toBe("neutral");
+    expect(guppyTrendStateAt(out, 49)).toBe("bull");
   });
 
   it("returns bull when every short EMA sits above every long EMA", () => {

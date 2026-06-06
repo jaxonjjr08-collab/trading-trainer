@@ -31,9 +31,9 @@ describe("paletteFor", () => {
     expect(p.representative).toBe("#2563eb");
   });
 
-  it("returns orange family for colorblind bear", () => {
+  it("returns red family for colorblind bear (v5.9.10 — was orange)", () => {
     const p = paletteFor("colorblind", "bear");
-    expect(p.representative).toBe("#ea580c");
+    expect(p.representative).toBe("#dc2626");
   });
 
   it("returns green family for standard bull", () => {

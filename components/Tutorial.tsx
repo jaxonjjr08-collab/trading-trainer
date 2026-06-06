@@ -216,6 +216,67 @@ export default function Tutorial() {
           </div>
         )}
 
+        {current.customVisual === "leverage_ladder" && (
+          <div className="max-w-2xl space-y-3">
+            <div className="rounded-md border border-line bg-panel2 p-4">
+              <div className="text-[10px] uppercase tracking-[0.15em] text-muted mb-3">
+                $1,000 of your money — how far price can move before you're wiped out
+              </div>
+              <div className="space-y-2">
+                {[
+                  { lev: "2×", pct: 50, tone: "good" },
+                  { lev: "5×", pct: 20, tone: "good" },
+                  { lev: "10×", pct: 10, tone: "warn" },
+                  { lev: "25×", pct: 4, tone: "bad" },
+                  { lev: "50×", pct: 2, tone: "bad" },
+                  { lev: "100×", pct: 1, tone: "bad" },
+                ].map((row) => {
+                  const toneClass =
+                    row.tone === "good"
+                      ? "bg-good"
+                      : row.tone === "warn"
+                      ? "bg-warn"
+                      : "bg-bad";
+                  const labelClass =
+                    row.tone === "good"
+                      ? "text-good"
+                      : row.tone === "warn"
+                      ? "text-warn"
+                      : "text-bad";
+                  // Bar width is proportional to the % move to liquidation, so
+                  // high leverage literally shows as "almost no room left."
+                  const widthPct = (row.pct / 50) * 100;
+                  return (
+                    <div key={row.lev} className="flex items-center gap-3">
+                      <span className="w-12 shrink-0 text-right font-mono text-sm font-semibold">
+                        {row.lev}
+                      </span>
+                      <div className="flex-1 h-5 rounded bg-bg border border-line overflow-hidden">
+                        <div
+                          className={`h-full ${toneClass} opacity-80`}
+                          style={{ width: `${Math.max(2, widthPct)}%` }}
+                        />
+                      </div>
+                      <span className={`w-28 shrink-0 text-xs font-mono ${labelClass}`}>
+                        ~{row.pct}% move
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="text-[11px] text-text bg-warn/10 border border-warn/30 rounded px-2 py-1.5 leading-snug">
+              <span className="text-warn font-semibold">
+                Longer bar = more breathing room.
+              </span>{" "}
+              At 50× the bar is almost gone — a normal 2% candle ends the trade.
+              Beginners stay at the green end (2–5×). These figures ignore fees
+              and the exchange's maintenance margin, so real liquidation hits a
+              touch sooner.
+            </div>
+          </div>
+        )}
+
         {current.customVisual === "decision_quality_compare" && (
           <div className="max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="rounded-md border border-good/40 bg-good/5 p-4 space-y-2">

@@ -13,7 +13,7 @@
 // review copy and the Learn term are deliberate about that distinction.
 
 import type { Candle } from "./types";
-import { ema } from "./indicators";
+import { emaFull } from "./indicators";
 
 export const GUPPY_SHORT_PERIODS = [
   3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25,
@@ -35,10 +35,16 @@ export type GuppyValues = {
 // Compute every EMA needed by the Super Guppy in one pass. 24 EMAs sounds
 // like a lot but each is O(n) and the candle count for any chart we render
 // is bounded (~300 max), so even on the lowest-end laptop this is sub-ms.
+//
+// v5.9.8 — uses emaFull (best-effort, emits at every candle) instead of the
+// strict ema(). Practice scenarios are only 15–90 candles; with strict EMA the
+// long ribbon (periods up to 61) was all-null on most scenarios, which forced
+// guppyTrendStateAt to return "neutral" forever — a permanently gray ribbon.
+// emaFull renders the full ribbon and lets the trend color flip correctly.
 export function computeGuppy(candles: Candle[]): GuppyValues {
   return {
-    short: GUPPY_SHORT_PERIODS.map((p) => ema(candles, p)),
-    long: GUPPY_LONG_PERIODS.map((p) => ema(candles, p)),
+    short: GUPPY_SHORT_PERIODS.map((p) => emaFull(candles, p)),
+    long: GUPPY_LONG_PERIODS.map((p) => emaFull(candles, p)),
   };
 }
 

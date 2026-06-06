@@ -124,7 +124,10 @@ const PORTFOLIO_KEY = "trainer.openPositions.v1";
 // v2.0 attempts continue to display correctly — they just lack that category.
 // v2.0 added the optional `trade_management` category on the same opt-in
 // pattern.
-export const SCORING_VERSION = "3.0.0";
+// v5.9.7 — 3.1.0: stricter thesis + invalidation grading (structure + a
+// specific price now required for strong marks; length alone no longer earns
+// full points).
+export const SCORING_VERSION = "3.1.0";
 
 const ALL_KEYS = [
   KEY,

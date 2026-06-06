@@ -79,6 +79,7 @@ import ModeToggle from "@/components/practice/ModeToggle";
 import ScenarioMeta from "@/components/practice/ScenarioMeta";
 import DrillStatusBanner from "@/components/practice/DrillStatusBanner";
 import CourseBanner from "@/components/practice/CourseBanner";
+import ScenarioPath from "@/components/practice/ScenarioPath";
 import Link from "next/link";
 import {
   DEFAULT_INDICATOR_CONFIG,
@@ -154,6 +155,11 @@ function PracticePageInner() {
   // When active, the decision form is replaced with a narrated demo on a
   // forced scenario (tc-sol-2024-10).
   const [showWatchMe, setShowWatchMe] = useState(false);
+  // v5.9.7 — cumulative decision the walkthrough is currently narrating. Drives
+  // the live entry/stop/TP lines on the chart so the demo SHOWS each price, not
+  // just describes it. Null when the walkthrough isn't active.
+  const [walkthroughPreview, setWalkthroughPreview] =
+    useState<Partial<Decision> | null>(null);
   // v2.4 — Cooldown after 3 consecutive sub-60 attempts in a session. Replaces
   // the decision form with a reflection prompt + 2-minute timer. Resets when
   // a non-losing attempt breaks the streak.
@@ -351,6 +357,16 @@ function PracticePageInner() {
     for (const r of chartScenario.context.resistance) {
       lines.push({ price: r, color: "#ef4444", title: "resistance", lineStyle: "dotted" });
     }
+    // v5.9.7 — while the walkthrough is narrating, draw whatever it has filled
+    // in so far. This is what turns "I'd set a stop at $138.50" into a red line
+    // the learner can actually see sitting below the swing low.
+    if (showWatchMe && walkthroughPreview) {
+      const w = walkthroughPreview;
+      if (w.entry != null) lines.push({ price: w.entry, color: "#4f8cff", title: "entry" });
+      if (w.stopLoss != null) lines.push({ price: w.stopLoss, color: "#ef4444", title: "stop" });
+      if (w.takeProfit != null) lines.push({ price: w.takeProfit, color: "#22c55e", title: "tp" });
+      return lines;
+    }
     // During management, draw entry/working-stop/TP so the user can see them
     // against the live candles.
     if (mgmtState) {
@@ -373,7 +389,7 @@ function PracticePageInner() {
       }
     }
     return lines;
-  }, [chartScenario, scenario, result, mgmtState]);
+  }, [chartScenario, scenario, result, mgmtState, showWatchMe, walkthroughPreview]);
 
   // Chart candle split. During management we reveal candles up to (and including)
   // the current managementPoint so the user can see what price did since entry.
@@ -568,6 +584,35 @@ function PracticePageInner() {
     refreshStreakBadges();
   }
 
+  // v5.9.7 — relaunch the narrated walkthrough on demand (not just on the very
+  // first visit). Forces the tuned scenario the copy is written against, clears
+  // any in-progress result, and shows the walkthrough panel.
+  function handleShowMeHow() {
+    const target = getScenarioById("tc-sol-2024-10") ?? scenario;
+    setScenario(target);
+    setResult(null);
+    setMgmtState(null);
+    setMicroLesson(null);
+    setSaved(false);
+    setMirrorOn(false);
+    setCooldownActive(false);
+    setWalkthroughPreview(null);
+    setShowWatchMe(true);
+    markScenarioSeen(target.id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // v5.10.0 — load a scenario by id from the guided path panel. Resolves the
+  // id and reuses loadScenario so reset/rotation behave identically to Next.
+  function handleSelectPathScenario(id: string) {
+    const target = getScenarioById(id);
+    if (!target) return;
+    setShowWatchMe(false);
+    setWalkthroughPreview(null);
+    loadScenario(target);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function loadScenario(s: Scenario) {
     setScenario(s);
     setResult(null);
@@ -650,10 +695,31 @@ function PracticePageInner() {
         </div>
 
         <div className="flex items-end gap-3">
+          {/* v5.9.7 — relaunch the narrated walkthrough anytime. Hidden while
+              it's already running or mid-review so it doesn't fight the panel. */}
+          {!showWatchMe && result == null && !mgmtState && (
+            <button
+              type="button"
+              onClick={handleShowMeHow}
+              title="Replay the guided walkthrough on a sample chart"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold border border-line bg-panel2 text-text px-3 py-1.5 rounded-md hover:border-accent/60 hover:text-accent transition-colors"
+            >
+              ▶ Show me how
+            </button>
+          )}
           <MirrorToggle on={mirrorOn} onChange={setMirrorOn} />
           <ModeToggle mode={mode} onChange={setMode} />
         </div>
       </div>
+
+      {/* v5.10.0 — guided scenario path: an easy→hard ladder with progress and
+          a Continue button. Collapsed by default; sits above the filters so a
+          beginner reaches for it before the random/next buttons. */}
+      <ScenarioPath
+        activeScenarioId={scenario.id}
+        onSelect={handleSelectPathScenario}
+        refreshTrigger={sessionAttempts.length}
+      />
 
       <DrillStatusBanner
         drillId={activeDrillId}
@@ -865,11 +931,16 @@ function PracticePageInner() {
                normal handleSubmit path so scoring/review/save work normally. */
             <WatchMeWalkthrough
               scenario={scenario}
+              onPreviewChange={setWalkthroughPreview}
               onSubmit={(d) => {
                 setShowWatchMe(false);
+                setWalkthroughPreview(null);
                 handleSubmit(d);
               }}
-              onSkip={() => setShowWatchMe(false)}
+              onSkip={() => {
+                setShowWatchMe(false);
+                setWalkthroughPreview(null);
+              }}
             />
           ) : mirrorOn ? (
             /* v2.4 — mirror mode disables the form. The user reads the flipped
@@ -949,6 +1020,20 @@ function PracticePageInner() {
                   else is one click away. */}
               <ReviewHeadline score={result.attempt.score} />
 
+              {/* v5.10.0 — "What actually happened" promoted out of the
+                  collapsed breakdown to always-visible. The reveal of how the
+                  chart actually played out is the single best teaching moment;
+                  burying it behind a disclosure meant most users never saw it. */}
+              <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-1.5">
+                <div className="text-xs uppercase tracking-wide text-accent font-semibold">
+                  What actually happened
+                </div>
+                <p className="text-sm text-text">{scenario.outcome.description}</p>
+                <p className="text-xs text-muted leading-snug">
+                  {scenario.outcome.takeaway}
+                </p>
+              </div>
+
               {/* v2.2 — worked example: what a strong decision looked like on
                   this exact scenario. Sits above the breakdown so the user
                   sees the model trade immediately, before any disclosure. */}
@@ -976,12 +1061,6 @@ function PracticePageInner() {
                     originalScore={result.attempt.score}
                   />
                   <OutcomePanel decision={result.decision} outcome={result.attempt.outcome} />
-
-                  <div className="rounded-md border border-line bg-panel2 p-3 space-y-1.5">
-                    <div className="text-xs uppercase tracking-wide text-muted">What actually happened</div>
-                    <p className="text-sm">{scenario.outcome.description}</p>
-                    <p className="text-xs text-muted leading-snug">{scenario.outcome.takeaway}</p>
-                  </div>
                 </div>
               </details>
 

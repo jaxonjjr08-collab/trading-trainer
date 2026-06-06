@@ -1,7 +1,45 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import LearnRoute from "@/components/LearnRoute";
+import FeatureCard, { SectionMarks } from "@/components/FeatureCard";
 import { LEARN_CATEGORIES, LEARN_TERMS, CATEGORY_THEME } from "@/lib/learn";
+
+// v5.10.4 — the Learn hands-on cards get their own personalized symbols
+// (hand-drawn here) instead of the shared generic icons: a magnified candle,
+// a lightning bolt, and a nested-frame "zoom out for context" mark.
+const sw = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.7,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+} as const;
+
+const learnIcons = {
+  // Candle School — a candlestick under a magnifier (you study the candle).
+  candleSchool: (
+    <svg viewBox="0 0 24 24" {...sw} className="w-5 h-5">
+      <path d="M6.5 3v3M6.5 14v3" />
+      <rect x="4" y="6" width="5" height="8" rx="1" />
+      <circle cx="15.5" cy="13" r="4" />
+      <path d="m18.4 15.9 2.4 2.4" />
+    </svg>
+  ),
+  // Speed-read drills — a lightning bolt.
+  speedRead: (
+    <svg viewBox="0 0 24 24" {...sw} className="w-5 h-5">
+      <path d="M13 2 5 13h6l-1 9 9-12h-6Z" />
+    </svg>
+  ),
+  // Context-first — a big frame (HTF) with a smaller zoomed region (LTF).
+  contextFirst: (
+    <svg viewBox="0 0 24 24" {...sw} className="w-5 h-5">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M6 10.5 8.5 13 12 9" />
+      <rect x="12.5" y="11" width="6" height="5.5" rx="1" />
+    </svg>
+  ),
+};
 
 export default function LearnPage() {
   const counts = LEARN_CATEGORIES.map((c) => ({
@@ -30,34 +68,41 @@ export default function LearnPage() {
           })}
         </div>
 
-        {/* v2.4 — entry to the speed-read flashcard drills. Sits inside the
-            Learn hero so users discover it from the top of the page rather
-            than as a hidden route. v4.1.3 — context-first drill added beside
-            it; same shape (10 rounds, 5s reveal) but trains HTF-first reading
-            instead of generic chart pattern recognition. */}
-        <div className="mt-5 space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/learn/drills"
-              className="inline-flex items-center gap-2 text-sm font-semibold bg-accent text-white px-4 py-2 rounded-md hover:opacity-90"
-            >
-              ⚡ Speed-read drills →
-            </Link>
-            <span className="text-xs text-muted">
-              10 quick 5-second flashcards — builds the chart-reading reflex.
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/learn/context-first"
-              className="inline-flex items-center gap-2 text-sm font-semibold bg-panel2 border border-line text-text px-4 py-2 rounded-md hover:border-accent/60"
-            >
-              ◆ Context-first drill →
-            </Link>
-            <span className="text-xs text-muted">
-              HTF for 5 seconds, call the trend, then see the LTF — trains the read-the-bigger-chart-first reflex.
-            </span>
-          </div>
+        {/* v5.10.1 — hands-on practice tools as proper feature cards (was a
+            stack of cramped text buttons). Surfaced at the top of Learn so
+            beginners find Candle School + the drills before the term path.
+            v5.10.2 — section gets a custom hand-drawn mark, matching the
+            dashboard launcher's section symbols. */}
+        <div className="mt-5 flex items-center gap-1.5">
+          <span className="text-accent shrink-0" aria-hidden>
+            {SectionMarks.handsOn}
+          </span>
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted/80">
+            Hands-on
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <FeatureCard
+            href="/learn/candles"
+            title="Candle School"
+            description="Shape a candle to name it, then browse the patterns the chart flags."
+            icon={learnIcons.candleSchool}
+            tone="accent"
+          />
+          <FeatureCard
+            href="/learn/drills"
+            title="Speed-read drills"
+            description="Ten 5-second flashcards that build the chart-reading reflex."
+            icon={learnIcons.speedRead}
+            tone="accent"
+          />
+          <FeatureCard
+            href="/learn/context-first"
+            title="Context-first drill"
+            description="Read the higher timeframe first, call the trend, then see the LTF."
+            icon={learnIcons.contextFirst}
+            tone="accent"
+          />
         </div>
       </div>
       <Suspense fallback={<div className="text-muted text-sm">Loading…</div>}>

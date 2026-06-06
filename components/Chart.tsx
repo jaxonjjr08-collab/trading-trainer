@@ -16,7 +16,7 @@ import {
   Time,
 } from "lightweight-charts";
 import type { Candle, ChartToolId, IndicatorConfig } from "@/lib/types";
-import { bollingerBands, ema, keltnerChannels, vwap } from "@/lib/indicators";
+import { bollingerBands, emaFull, keltnerChannels, vwap } from "@/lib/indicators";
 import { defaultPivotWindow, pivotLevels } from "@/lib/pivot-points";
 import {
   addDrawing,
@@ -49,7 +49,7 @@ import {
   chrisGuppyStateLatest,
   type ChrisGuppyParams,
 } from "@/lib/indicators-chris-guppy";
-import { clusterColors, paletteFor, type ColorMode } from "@/lib/color-mode";
+import { solidColors, paletteFor, type ColorMode } from "@/lib/color-mode";
 import { getChrisGuppyParams, getColorMode } from "@/lib/storage";
 import ChartLegend from "@/components/practice/ChartLegend";
 import ChartHoverTooltip from "@/components/practice/ChartHoverTooltip";
@@ -949,9 +949,11 @@ export default function Chart({
       const ema20 = ensureLine("ema20", EMA20_COLOR, 1);
       const ema50 = ensureLine("ema50", EMA50_COLOR, 1);
       const ema200 = ensureLine("ema200", EMA200_COLOR, 2);
-      ema20.setData(toLineData(combined, ema(combined, 20)));
-      ema50.setData(toLineData(combined, ema(combined, 50)));
-      ema200.setData(toLineData(combined, ema(combined, 200)));
+      // v5.9.8 — emaFull so EMA 50/200 still render on short Practice
+      // scenarios (15–90 candles) instead of vanishing during warmup.
+      ema20.setData(toLineData(combined, emaFull(combined, 20)));
+      ema50.setData(toLineData(combined, emaFull(combined, 50)));
+      ema200.setData(toLineData(combined, emaFull(combined, 200)));
     } else {
       drop("ema20");
       drop("ema50");
@@ -1129,20 +1131,19 @@ export default function Chart({
         dropGuppy();
       }
       const palette = paletteFor(colorMode, nextState);
-      // v5.1.2 — ribbon lines render with 0.75 alpha so overlapping adjacent
-      // EMAs compound into a more visible band. With full opacity each line
-      // was drawing over its neighbor; with ~1px width and tight Y-spacing
-      // the band collapsed visually into a single colored stripe.
-      const RIBBON_ALPHA = 0.75;
-      const shortColors = clusterColors(
-        palette.shortStart,
-        palette.shortEnd,
+      // v5.9.9 — single solid colour for the whole ribbon (was a pale→deep
+      // gradient). Every strand is the state's representative colour at 0.7
+      // alpha, so overlaps compound into a clean one-hue band that matches the
+      // legend chip. The short-vs-long clusters are still distinguishable by
+      // their Y-position, just not by colour.
+      const RIBBON_ALPHA = 0.7;
+      const shortColors = solidColors(
+        palette.representative,
         GUPPY_SHORT_PERIODS.length,
         RIBBON_ALPHA
       );
-      const longColors = clusterColors(
-        palette.longStart,
-        palette.longEnd,
+      const longColors = solidColors(
+        palette.representative,
         GUPPY_LONG_PERIODS.length,
         RIBBON_ALPHA
       );
@@ -1263,16 +1264,15 @@ export default function Chart({
       if (needsRepaint) dropChris();
 
       const palette = paletteFor(colorMode, nextState);
-      const RIBBON_ALPHA = 0.75;
-      const fastColors = clusterColors(
-        palette.shortStart,
-        palette.shortEnd,
+      // v5.9.9 — single solid colour, matching the Super Guppy change above.
+      const RIBBON_ALPHA = 0.7;
+      const fastColors = solidColors(
+        palette.representative,
         params.fast.length,
         RIBBON_ALPHA
       );
-      const slowColors = clusterColors(
-        palette.longStart,
-        palette.longEnd,
+      const slowColors = solidColors(
+        palette.representative,
         params.slow.length,
         RIBBON_ALPHA
       );

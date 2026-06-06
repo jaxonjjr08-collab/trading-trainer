@@ -44,6 +44,30 @@ const NAV_LINKS: NavLink[] = [
       </svg>
     ),
   },
+  // v5.10.1 — Live Paper Trading + Portfolio promoted into the primary nav.
+  // They were only reachable from the Dashboard before, which made them hard
+  // to find. Desktop-only (see DESKTOP_LINKS); the mobile bottom bar stays the
+  // core set and surfaces these via the home launcher instead.
+  {
+    href: "/paper-trading",
+    label: "Live",
+    icon: () => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={ICON_STROKE} strokeWidth="2" className="w-5 h-5">
+        <circle cx="12" cy="12" r="2.5" />
+        <path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: "/portfolio",
+    label: "Portfolio",
+    icon: () => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={ICON_STROKE} strokeWidth="2" className="w-5 h-5">
+        <path d="M12 3 3 7.5 12 12l9-4.5Z" strokeLinejoin="round" />
+        <path d="M3 12l9 4.5 9-4.5" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
   {
     href: "/journal",
     label: "Journal",
@@ -100,16 +124,45 @@ function isActive(linkHref: string, pathname: string): boolean {
   return pathname === linkHref || pathname.startsWith(`${linkHref}/`);
 }
 
+// v5.10.1 — desktop and mobile show different subsets so neither bar gets
+// crowded. Desktop top nav leads with the core trading loop incl. the newly
+// promoted Live + Portfolio; the mobile bottom bar keeps its familiar set and
+// relies on the home launcher to reach Live/Portfolio.
+const DESKTOP_HREFS = [
+  "/",
+  "/practice",
+  "/paper-trading",
+  "/portfolio",
+  "/journal",
+  "/learn",
+];
+const BOTTOM_HREFS = [
+  "/",
+  "/training",
+  "/practice",
+  "/journal",
+  "/learn",
+  "/glossary",
+];
+
 // Two renders behind one component: the desktop top-nav (existing UI) and the
 // mobile bottom tab bar (fixed to viewport, icon + label per route).
 export default function NavLinks() {
   const pathname = usePathname();
-  const bottomItems = [...NAV_LINKS, SETTINGS_LINK];
+  const desktopLinks = DESKTOP_HREFS.map(
+    (h) => NAV_LINKS.find((l) => l.href === h)!
+  ).filter(Boolean);
+  const bottomItems = [
+    ...BOTTOM_HREFS.map((h) => NAV_LINKS.find((l) => l.href === h)!).filter(
+      Boolean
+    ),
+    SETTINGS_LINK,
+  ];
   return (
     <>
       {/* Top nav — visible at md+ */}
       <nav className="hidden md:flex gap-4 text-sm">
-        {NAV_LINKS.map(({ href, label }) => {
+        {desktopLinks.map(({ href, label }) => {
           const active = isActive(href, pathname);
           return (
             <Link

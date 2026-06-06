@@ -14,7 +14,14 @@ export type TutorialStep = {
   learnTermId?: string;
   // Optional custom visual key, switched on inside Tutorial.tsx. Use when a
   // step needs a non-chart illustration (e.g. side-by-side comparison cards).
-  customVisual?: "decision_quality_compare" | "spot_vs_futures_compare" | "trains_vs_doesnt";
+  customVisual?:
+    | "decision_quality_compare"
+    | "spot_vs_futures_compare"
+    | "trains_vs_doesnt"
+    // v5.9.6 — leverage ladder: rows of leverage levels showing how the
+    // distance-to-liquidation shrinks as leverage rises. Built for beginners
+    // who bounce off the abstract "10× = 10% move" phrasing.
+    | "leverage_ladder";
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -82,12 +89,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: "leverage",
-    title: "Leverage",
+    title: "Leverage — borrowing to trade bigger",
     body:
-      "A multiplier. 10× leverage means a 10% adverse move liquidates you — the exchange closes your position at the worst possible time. Higher leverage doesn't make you richer, it just shrinks the distance to losing everything. Most beginners shouldn't go above 3–5×.",
-    chartKey: "leverage",
-    chartCaption: "Higher leverage = liquidation price closer to entry.",
+      "Leverage lets you control a big position with a small amount of your own money. Say you have $1,000. At 10× leverage you control a $10,000 position — the exchange effectively lends you the other $9,000. Here's the catch beginners miss: the price doesn't move any differently, but every move now counts for 10× the dollars. BTC up 1%? You make $100 instead of $10. BTC down 1%? You lose $100 instead of $10. Leverage doesn't make a trade more likely to win — it just makes the exact same price move hit your account ten times harder, in both directions.",
     learnTermId: "leverage",
+  },
+  {
+    id: "liquidation",
+    title: "Liquidation — running out of room",
+    body:
+      "Because your money takes the full force of every move, you can run out before price ever comes back. When your losses eat through the money you put up, the exchange force-closes the trade — that's liquidation, and you lose your whole stake on that trade. The higher the leverage, the smaller the move it takes to get there. At 2× it takes a ~50% drop. At 10× just ~10%. At 50× a ~2% wiggle — the kind that happens in minutes — wipes you out. This is why this trainer keeps beginners at 3–5×: not to be cautious for its own sake, but because high leverage gives price no room to breathe before it closes you at the worst possible moment.",
+    customVisual: "leverage_ladder",
+    learnTermId: "liquidation",
   },
   {
     id: "decision_quality",
