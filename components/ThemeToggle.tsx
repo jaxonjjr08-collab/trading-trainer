@@ -106,7 +106,8 @@ export default function ThemeToggle() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-60 rounded-lg border border-line bg-panel shadow-2xl p-1.5 z-50"
+          className="absolute right-0 mt-2 w-60 rounded-lg border border-line bg-panel shadow-2xl p-1.5 z-50 animate-pop-in"
+          style={{ ["--pop-origin" as string]: "top right" } as React.CSSProperties}
         >
           <div className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-muted">
             Theme

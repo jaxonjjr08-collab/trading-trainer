@@ -157,11 +157,20 @@ input:focus,
 textarea:focus,
 select:focus {
   @apply outline-none ring-1 ring-accent border-accent;
+  /* v5.11.1 — the ring fades in and the box-shadow halo expands slightly so
+     focus feels like the field is "leaning in" rather than snapping. */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  transition:
+    background-color 320ms ease-out,
+    border-color 200ms ease-out,
+    color 320ms ease-out,
+    box-shadow 200ms ease-out;
 }
 
 button {
   @apply rounded-md;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  /* Full transition + press feedback consolidated in the v5.11.1 block
+     near the bottom of this file. The rounded-md utility stays here. */
 }
 
 /* v6.0 — craft layer: custom focus ring + scrollbar so the whole app feels
@@ -353,4 +362,61 @@ button {
 .animate-confetti {
   animation: confettiFall var(--duration, 1800ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
   animation-delay: var(--delay, 0ms);
+}
+
+/* v5.11.1 — Pop-in: scale-up + fade from a top-anchor. Dropdown menus and
+   modal cards use this so they appear to "expand from" their trigger
+   rather than punch into existence. */
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-pop-in {
+  animation: popIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: var(--pop-origin, top);
+}
+
+/* Float — a slow, gentle bob loop used on idle-state mascots so empty-state
+   panels feel alive instead of frozen. */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.animate-float {
+  animation: float 3.6s ease-in-out infinite;
+}
+
+/* Shimmer — diagonal sheen sweep across a placeholder/skeleton. */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--text) 12%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* v5.11.1 — global press feedback. Every interactive <button> dips slightly
+   on press so taps and clicks feel registered. Cheap, universal, and the
+   reduced-motion media query at the bottom of this file collapses it for
+   users who've opted out. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+button {
+  transition-property: background-color, border-color, color, transform, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
 }

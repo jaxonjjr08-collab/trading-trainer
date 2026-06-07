@@ -14,8 +14,9 @@
 //   • CustomEvent("trainer:streak-updated") — dispatched by saveAttempt callers
 //   • window 'focus' — catches midnight rollover when tab was idle
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getDailyGoal, visibleStreak } from "@/lib/streak";
+import AnimatedNumber from "@/components/animation/AnimatedNumber";
 
 export const STREAK_UPDATED_EVENT = "trainer:streak-updated";
 
@@ -33,6 +34,13 @@ export default function StreakBadge() {
     isBrokenButRecoverable: false,
   });
   const [goal, setGoal] = useState(3);
+  // v5.11.1 — flash the badge with a glow whenever the streak count or the
+  // today-count climbs. Stamped on a key that increments per change so the
+  // CSS animation re-runs each time without state-juggling.
+  const prevStreakRef = useRef(0);
+  const prevTodayRef = useRef(0);
+  const [glowKey, setGlowKey] = useState(0);
+  const [goalCelebKey, setGoalCelebKey] = useState(0);
 
   useEffect(() => {
     function read() {
@@ -48,6 +56,18 @@ export default function StreakBadge() {
       window.removeEventListener("focus", read);
     };
   }, []);
+
+  // Detect a fresh increment for the visual celebration. We compare against
+  // a ref so a re-render that re-reads the same numbers doesn't re-fire it.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (streak.current > prevStreakRef.current) setGlowKey((k) => k + 1);
+    if (streak.todayCount > prevTodayRef.current && streak.todayCount >= goal) {
+      setGoalCelebKey((k) => k + 1);
+    }
+    prevStreakRef.current = streak.current;
+    prevTodayRef.current = streak.todayCount;
+  }, [streak.current, streak.todayCount, goal, hydrated]);
 
   // Reserve space during SSR so the header doesn't jump on hydration.
   if (!hydrated) return <div className="h-7 w-[7.5rem]" aria-hidden />;
@@ -71,23 +91,29 @@ export default function StreakBadge() {
     ? `Streak broken (best was ${streak.longest}). Save today to start a new one.`
     : "Save an attempt to start a streak.";
 
+  // v5.11.1 — glowKey is bumped per streak increment so the keyed wrapper
+  // re-mounts and re-runs animate-glow each time. Same trick for the
+  // todayCount-hits-goal celebration.
   return (
     <div
-      className="inline-flex items-center h-7 rounded-full border border-line bg-panel2 text-xs leading-none select-none"
+      key={`s${glowKey}-g${goalCelebKey}`}
+      className={`inline-flex items-center h-7 rounded-full border border-line bg-panel2 text-xs leading-none select-none ${
+        glowKey > 0 || goalCelebKey > 0 ? "animate-glow" : ""
+      }`}
       title={tooltip}
       aria-label={tooltip}
     >
       <div className="flex items-center gap-1.5 pl-2.5 pr-3">
         <span aria-hidden className={`text-sm ${flameClass}`}>{flame}</span>
         <span className={`font-mono font-semibold tabular-nums ${streakNumClass}`}>
-          {streak.current}
+          <AnimatedNumber value={streak.current} durationMs={600} />
         </span>
         <span className="text-muted text-[10px] uppercase tracking-wide">d</span>
       </div>
       <span aria-hidden className="h-3.5 w-px bg-line" />
       <div className="flex items-center gap-1 pl-3 pr-2.5">
         <span className={`font-mono font-semibold tabular-nums ${goalMet ? "text-good" : "text-text"}`}>
-          {streak.todayCount}
+          <AnimatedNumber value={streak.todayCount} durationMs={500} />
         </span>
         <span className="text-muted">/</span>
         <span className="font-mono tabular-nums text-muted">{goal}</span>

@@ -76,7 +76,7 @@ export default function ChrisGuppySettings({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -84,7 +84,10 @@ export default function ChrisGuppySettings({ open, onClose }: Props) {
       aria-modal="true"
       aria-label="Chris's Super Guppy settings"
     >
-      <div className="w-full max-w-2xl max-h-[85vh] rounded-lg border border-line bg-panel shadow-2xl flex flex-col">
+      <div
+        className="w-full max-w-2xl max-h-[85vh] rounded-lg border border-line bg-panel shadow-2xl flex flex-col animate-pop-in"
+        style={{ ["--pop-origin" as string]: "center" } as React.CSSProperties}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-line">
           <h2 className="text-lg font-semibold">Chris's Super Guppy</h2>
           <button

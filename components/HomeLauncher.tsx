@@ -218,8 +218,11 @@ export default function HomeLauncher() {
               </div>
               {/* v5.11.0 — staggered fade-up entrance on the cards. The
                   `.stagger` parent applies a 60ms cascade and each card uses
-                  `animate-rise` so they slide in one after another. */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
+                  `animate-rise` so they slide in one after another.
+                  v5.11.1 — compact variant + denser grid (2 cols mobile, 4 on
+                  desktop) so the launcher fits in a fraction of the vertical
+                  space and the dashboard scrolls far less. */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 stagger">
                 {group.items.map((item) => (
                   <FeatureCard
                     key={item.href}
@@ -229,6 +232,7 @@ export default function HomeLauncher() {
                     icon={item.icon}
                     tone={group.tone}
                     badge={item.badge}
+                    variant="compact"
                   />
                 ))}
               </div>

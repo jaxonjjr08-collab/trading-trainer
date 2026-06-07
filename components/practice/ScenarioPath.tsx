@@ -168,14 +168,6 @@ function ScenarioChip({
   active: boolean;
   onClick: () => void;
 }) {
-  const icon =
-    status === "cleared"
-      ? "✓"
-      : status === "current"
-      ? "▶"
-      : status === "attempted"
-      ? "•"
-      : "";
   const tone =
     status === "cleared"
       ? "border-good/50 bg-good/10 text-good"
@@ -184,16 +176,36 @@ function ScenarioChip({
       : status === "attempted"
       ? "border-warn/40 bg-warn/5 text-warn"
       : "border-line bg-panel2 text-muted hover:text-text";
+  // v5.11.1 — cleared chips draw a real check path so the tick "writes
+  // itself" via animate-check (stroke-dashoffset). Other statuses keep
+  // their tiny glyphs so the chip stays compact.
+  const glyph =
+    status === "cleared" ? (
+      <svg viewBox="0 0 16 16" className="w-3 h-3 animate-check" aria-hidden>
+        <path
+          d="M3.5 8.5 7 12l5.5-7"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ) : status === "current" ? (
+      <span aria-hidden>▶</span>
+    ) : status === "attempted" ? (
+      <span aria-hidden>•</span>
+    ) : null;
   return (
     <button
       type="button"
       onClick={onClick}
       title={`${symbol} · ${label}`}
-      className={`inline-flex items-center gap-1 max-w-[150px] px-2 py-1 rounded-md border text-[11px] font-semibold transition-colors ${tone} ${
+      className={`inline-flex items-center gap-1 max-w-[150px] px-2 py-1 rounded-md border text-[11px] font-semibold transition-colors hover:-translate-y-0.5 ${tone} ${
         active ? "ring-2 ring-accent/50" : ""
       }`}
     >
-      {icon && <span aria-hidden>{icon}</span>}
+      {glyph}
       <span className="truncate">{label}</span>
     </button>
   );

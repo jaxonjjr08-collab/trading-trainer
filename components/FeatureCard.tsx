@@ -43,6 +43,7 @@ export default function FeatureCard({
   icon,
   tone = "accent",
   badge,
+  variant = "full",
 }: {
   href: string;
   title: string;
@@ -51,26 +52,37 @@ export default function FeatureCard({
   tone?: FeatureTone;
   // Optional little pill in the top-right (e.g. "Live", "New").
   badge?: string;
+  // v5.11.1 — `compact` shrinks padding, icon, and hides the description so
+  // the dashboard launcher fits dramatically more cards per viewport. `full`
+  // keeps the original spacious card used on the Learn hero.
+  variant?: "full" | "compact";
 }) {
   const t = TONE[tone];
+  const isCompact = variant === "compact";
+  // v5.11.0 — animate-rise fades the card up on mount; the parent's
+  // .stagger picks the delay. hover-lift uses transform so it composes
+  // cleanly with the entrance animation (one runs once, the other on
+  // hover) without fighting over the transform property.
+  const wrapClass = isCompact
+    ? `group relative flex items-center gap-2.5 rounded-lg border border-line bg-panel px-3 py-2.5 animate-rise transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/20 ${t.hoverBorder}`
+    : `group relative flex items-start gap-3.5 rounded-xl border border-line bg-panel p-4 animate-rise transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${t.hoverBorder}`;
+  const iconClass = isCompact
+    ? `shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-md ${t.badge}`
+    : `shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-lg ${t.badge}`;
   return (
-    <Link
-      href={href}
-      // v5.11.0 — animate-rise fades the card up on mount; the parent's
-      // .stagger picks the delay. hover-lift uses transform so it composes
-      // cleanly with the entrance animation (one runs once, the other on
-      // hover) without fighting over the transform property.
-      className={`group relative flex items-start gap-3.5 rounded-xl border border-line bg-panel p-4 animate-rise transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${t.hoverBorder}`}
-    >
-      <span
-        className={`shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-lg ${t.badge}`}
-        aria-hidden
-      >
+    <Link href={href} className={wrapClass}>
+      <span className={iconClass} aria-hidden>
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="font-display text-base font-semibold leading-tight">
+        <span className="flex items-center gap-1.5">
+          <span
+            className={
+              isCompact
+                ? "font-display text-sm font-semibold leading-tight"
+                : "font-display text-base font-semibold leading-tight"
+            }
+          >
             {title}
           </span>
           {badge && (
@@ -81,12 +93,14 @@ export default function FeatureCard({
             </span>
           )}
         </span>
-        <span className="mt-1 block text-xs text-muted leading-snug">
-          {description}
-        </span>
+        {!isCompact && (
+          <span className="mt-1 block text-xs text-muted leading-snug">
+            {description}
+          </span>
+        )}
       </span>
       <span
-        className={`shrink-0 self-center text-lg ${t.arrow} opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0`}
+        className={`shrink-0 self-center text-base ${t.arrow} opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0`}
         aria-hidden
       >
         →

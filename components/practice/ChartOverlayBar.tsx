@@ -134,7 +134,8 @@ export default function ChartOverlayBar({
         {menuOpen && (
           <div
             role="menu"
-            className="absolute left-0 top-full mt-2 z-40 w-72 rounded-lg border border-line bg-panel shadow-2xl p-1.5"
+            className="absolute left-0 top-full mt-2 z-40 w-72 rounded-lg border border-line bg-panel shadow-2xl p-1.5 animate-pop-in"
+            style={{ ["--pop-origin" as string]: "top left" } as React.CSSProperties}
           >
             <div className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-muted">
               Chart tools
