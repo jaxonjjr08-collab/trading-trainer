@@ -47,6 +47,13 @@ const SYMBOLS: SymbolSpec[] = [
   { symbol: "ETH/USD", basePrice: 2400, timeframe: "6h", intervalSec: 21600 },
   { symbol: "SOL/USD", basePrice: 145, timeframe: "4h", intervalSec: 14400 },
   { symbol: "SOL/USD", basePrice: 220, timeframe: "6h", intervalSec: 21600 },
+  // v5.12.1 — more liquid majors so the procedural pool feels less
+  // BTC/ETH/SOL-only. All recipes scale proportionally to basePrice and the
+  // 2-dp price formatter handles every price >= ~$5 cleanly.
+  { symbol: "LINK/USD", basePrice: 14, timeframe: "4h", intervalSec: 14400 },
+  { symbol: "AVAX/USD", basePrice: 30, timeframe: "6h", intervalSec: 21600 },
+  { symbol: "LTC/USD", basePrice: 85, timeframe: "6h", intervalSec: 21600 },
+  { symbol: "DOT/USD", basePrice: 7, timeframe: "4h", intervalSec: 14400 },
 ];
 
 type Recipe = (symbol: SymbolSpec, seed: number) => Scenario;
