@@ -8,6 +8,16 @@ export type ChangelogEntry = {
 // Newest first. Used by the version-badge modal in app/layout.tsx.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.12.6",
+    date: "2026-06-10",
+    title: "A real backup, safer reset, and accessibility polish",
+    highlights: [
+      "Export/Import is now a true backup. It used to save only your practice journal, quizzes, diagnostic, and drill — so moving to another browser quietly lost your streak, daily goal, bookmarks, curriculum progress, trading defaults, indicator + chart-colour prefs, customised Chris's Guppy, and your portfolio/live sessions. Export now snapshots all of it. Your Anthropic/OpenAI API keys are deliberately left out so a backup file is safe to share, and importing an older file can no longer wipe data it doesn't mention. Old backups still import.",
+      "Fixed: 'Reset all data' was silently leaving your customised Chris's Super Guppy settings behind — it now clears them like every other setting.",
+      "Accessibility: closing the Guppy settings, chart-tools help, or AI-consent dialog now returns keyboard focus to the control you opened it from, and the Dashboard resurfaces a 'Pick up where you left off' row when a paper-trading or portfolio session is still open.",
+    ],
+  },
+  {
     version: "5.12.2",
     date: "2026-06-07",
     title: "Trade-management reps across the library + more variety + polish",
