@@ -81,6 +81,7 @@ import ScenarioMeta from "@/components/practice/ScenarioMeta";
 import DrillStatusBanner from "@/components/practice/DrillStatusBanner";
 import CourseBanner from "@/components/practice/CourseBanner";
 import ScenarioPath from "@/components/practice/ScenarioPath";
+import { PracticeSkeleton } from "@/components/animation/Skeleton";
 import Link from "next/link";
 import {
   DEFAULT_INDICATOR_CONFIG,
@@ -118,7 +119,7 @@ const INITIAL_FILTERS: FilterState = {
 
 export default function PracticePage() {
   return (
-    <Suspense fallback={<div className="text-muted text-sm">Loading…</div>}>
+    <Suspense fallback={<PracticeSkeleton />}>
       <PracticePageInner />
     </Suspense>
   );

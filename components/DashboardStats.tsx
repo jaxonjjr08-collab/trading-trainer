@@ -33,6 +33,7 @@ import WeeklyDigest from "./Dashboard/WeeklyDigest";
 import RevisitPrompt from "./Dashboard/RevisitPrompt";
 import AchievementsPanel from "./AchievementsPanel";
 import MascotBubble from "./MascotBubble";
+import Skeleton from "./animation/Skeleton";
 
 export default function DashboardStats() {
   const router = useRouter();
@@ -49,7 +50,23 @@ export default function DashboardStats() {
   }, [router]);
 
   if (attempts == null) {
-    return <div className="text-muted text-sm">Loading…</div>;
+    return (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16" rounded="full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-8 w-72 max-w-full" />
+          </div>
+        </div>
+        <Skeleton className="h-px w-full" />
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      </div>
+    );
   }
 
   return (

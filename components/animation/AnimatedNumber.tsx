@@ -47,35 +47,33 @@ export default function AnimatedNumber({
   prefix,
   suffix,
 }: Props) {
-  const [display, setDisplay] = useState<number>(value);
-  const fromRef = useRef<number>(value);
-  const startedRef = useRef<boolean>(false);
+  // Start at 0 so the first paint shows the count-up's beginning, not a
+  // one-frame flash of the final value. Under reduced motion the effect snaps
+  // it to `value` immediately. `displayRef` mirrors the live value so a new
+  // tween (e.g. the streak ticked up) starts from where the last one ended.
+  const [display, setDisplay] = useState<number>(0);
+  const displayRef = useRef<number>(0);
 
   useEffect(() => {
-    // Snap straight to the target when the user prefers reduced motion.
     if (prefersReducedMotion()) {
+      displayRef.current = value;
       setDisplay(value);
-      fromRef.current = value;
       return;
     }
-    const from = startedRef.current ? display : 0; // first run animates from 0
-    fromRef.current = from;
-    startedRef.current = true;
+    const from = displayRef.current;
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
       const elapsed = now - start;
       const t = Math.min(1, elapsed / durationMs);
       const eased = easeOutCubic(t);
-      setDisplay(from + (value - from) * eased);
+      const next = from + (value - from) * eased;
+      displayRef.current = next;
+      setDisplay(next);
       if (t < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // We intentionally exclude `display` from deps — we read it once at the
-    // start of each new tween so the next animation starts from where the
-    // previous one ended, but we don't want to restart on every frame.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, durationMs]);
 
   const rounded = Number(display.toFixed(decimals));
