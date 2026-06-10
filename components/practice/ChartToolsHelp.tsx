@@ -14,6 +14,7 @@ import Link from "next/link";
 import MiniChart from "../MiniChart";
 import { CHART_SPECS } from "@/lib/learn-charts";
 import { CHART_TOOL_LABELS, type ChartToolId } from "@/lib/types";
+import { useFocusRestore } from "@/lib/use-focus-restore";
 
 type ToolEntry = {
   id: ChartToolId;
@@ -108,6 +109,7 @@ type Props = {
 };
 
 export default function ChartToolsHelp({ open, onClose }: Props) {
+  useFocusRestore(open);
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {

@@ -12,6 +12,7 @@ import {
   type ChrisGuppySource,
 } from "@/lib/indicators-chris-guppy";
 import { getChrisGuppyParams, setChrisGuppyParams } from "@/lib/storage";
+import { useFocusRestore } from "@/lib/use-focus-restore";
 
 const SOURCES: { value: ChrisGuppySource; label: string }[] = [
   { value: "close", label: "Close" },
@@ -30,6 +31,7 @@ type Props = {
 
 export default function ChrisGuppySettings({ open, onClose }: Props) {
   const [params, setParams] = useState<ChrisGuppyParams>(CHRIS_GUPPY_DEFAULTS);
+  useFocusRestore(open);
 
   useEffect(() => {
     if (open) setParams(getChrisGuppyParams());

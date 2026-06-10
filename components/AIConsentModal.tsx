@@ -7,6 +7,7 @@
 // caller is responsible for keeping the toggle off.
 
 import { useEffect } from "react";
+import { useFocusRestore } from "@/lib/use-focus-restore";
 
 type Props = {
   open: boolean;
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export default function AIConsentModal({ open, onAccept, onDismiss }: Props) {
+  useFocusRestore(open);
   // Trap Esc to dismiss while open.
   useEffect(() => {
     if (!open) return;
