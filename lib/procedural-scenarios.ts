@@ -29,6 +29,7 @@ import type {
   SetupType,
 } from "./types";
 import { buildSeries, makeRng, type Move } from "./scenarios";
+import { withDerivedManagement } from "./management-derivation";
 
 // ── Recipe types ─────────────────────────────────────────────────────────────
 
@@ -88,7 +89,10 @@ function buildScenario(args: {
     args.symbol.intervalSec,
     args.seed
   );
-  return {
+  // v5.12.0 — run through withDerivedManagement so procedurally-generated
+  // scenarios get the same trade-management prompts as the authored ones when
+  // their ideal trade runs in profit.
+  return withDerivedManagement({
     id: args.id,
     title: args.title,
     symbol: args.symbol.symbol,
@@ -108,7 +112,7 @@ function buildScenario(args: {
     context: args.context,
     idealDecisionPlan: args.idealDecisionPlan,
     dataSource: "procedural",
-  };
+  });
 }
 
 function lastClose(candles: Candle[]): number {

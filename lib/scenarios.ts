@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import { buildRealScenario } from "./scenario-factory";
 import { REAL_SCENARIOS } from "./scenarios-real";
+import { withDerivedManagement } from "./management-derivation";
 
 // Deterministic LCG so synthetic scenarios are reproducible across builds.
 // v3.0 — exported for reuse by lib/procedural-scenarios.ts. Same algorithm.
@@ -530,7 +531,11 @@ const hidden_chop: Candle[] = [
   { time: 1729382400, open: 68363.73, high: 68433.80, low: 68083.18, close: 68202.69, volume: 446.81 },
 ];
 
-export const SCENARIOS: Scenario[] = [
+// v5.12.0 — RAW_SCENARIOS is the authored list. SCENARIOS (exported below)
+// post-processes it through withDerivedManagement so every scenario whose
+// ideal trade runs in profit gains trade-management prompts, while the three
+// hand-authored ones keep theirs untouched.
+const RAW_SCENARIOS: Scenario[] = [
   // Factory smoke test (v1.7.1): identical output to the legacy hand-written form,
   // plus the new dataSource: "real" marker.
   buildRealScenario({
@@ -969,6 +974,11 @@ export const SCENARIOS: Scenario[] = [
   })(),
   ...REAL_SCENARIOS,
 ];
+
+// v5.12.0 — attach derived trade-management points to every scenario whose
+// ideal trade actually runs (authored points are preserved). This is what
+// turns "3 scenarios teach management" into "every winner does".
+export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map(withDerivedManagement);
 
 export function getScenarioById(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
