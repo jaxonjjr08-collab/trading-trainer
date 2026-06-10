@@ -8,6 +8,47 @@ export type ChangelogEntry = {
 // Newest first. Used by the version-badge modal in app/layout.tsx.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "5.12.2",
+    date: "2026-06-07",
+    title: "Trade-management reps across the library + more variety + polish",
+    highlights: [
+      "The 'manage the trade after entry' skill — move stop to break-even, take a partial, exit the runner — used to ship on only 3 of the 43 authored scenarios, so it almost never got practiced. It now appears on every scenario whose ideal trade actually runs in profit (3 → 18 authored, plus every favorable procedural one). Points are DERIVED from each scenario's ideal plan replayed through its real hidden candles: +1R → protect, +2R/near-target → partial, near target → exit, with prompts that quote the real price at that bar. Lose-before-+1R trades get no management — it only fires on the winners, where management changes the result.",
+      "More procedural variety: LINK, AVAX, LTC, and DOT joined the synthetic symbol pool so generated charts feel less BTC/ETH/SOL-only.",
+      "Loading polish: a shimmering skeleton (chart-shaped on Practice, hero-shaped on the Dashboard) replaces the bare 'Loading…' text on the surfaces you actually wait on. The score count-up no longer flashes the final number for a frame before it starts.",
+    ],
+  },
+  {
+    version: "5.11.1",
+    date: "2026-06-06",
+    title: "Purposeful motion + a shorter dashboard",
+    highlights: [
+      "A motion pass, all gated on prefers-reduced-motion: the score reveal counts up and pops in, the breakdown bars fill left→right in a stagger, the owl mascot bounces on a clear and gives a sympathetic shake on a rough one, and confetti bursts when an attempt clears (≥70%). Result panels and the home launcher cards cascade in; routes fade in; dropdowns and modals scale-fade open; every button dips slightly on press.",
+      "The streak badge animates its digits and flashes a glow whenever the streak climbs; cleared scenario-path chips draw their own checkmark.",
+      "The Dashboard is far shorter: the Jump-in launcher uses compact cards on a denser grid, and the redundant 'Your open sessions' section (already covered by the launcher) is gone.",
+    ],
+  },
+  {
+    version: "5.10.5",
+    date: "2026-06-06",
+    title: "Guided Scenario Path, a findable home launcher, and OpenAI support",
+    highlights: [
+      "New guided Scenario Path on Practice: an easy→hard ladder (Foundations / Building / Mastery) with progress and a 'Continue' that loads the next uncleared scenario (cleared = 70%+). The 'what actually happened' reveal was promoted out of the collapsed breakdown to always-visible — it's the best teaching moment.",
+      "Home 'Jump in' launcher: a grouped grid (Trade / Learn / Track) surfacing the previously-buried Live Paper Trading, Portfolio, Candle School, and Drills — one glance from home. Live + Portfolio also joined the desktop nav. Every entry uses an original hand-drawn SVG symbol — no emojis.",
+      "AI features now support OpenAI (ChatGPT) alongside Anthropic (Claude): a provider toggle in Settings, GPT-4o mini / GPT-4o models, and each provider's key kept independently.",
+    ],
+  },
+  {
+    version: "5.9.10",
+    date: "2026-06-05",
+    title: "Chris's Super Guppy, Candle School, and a leverage/liquidation rebuild",
+    highlights: [
+      "New 'Chris's Super Guppy' — a user-editable GMMA modelled on the TradingView indicator: a settings dialog for every fast/slow EMA, source, the optional EMA 200, and the 200-filter gate. The chart's Indicators row collapsed into a single 'Tools' dropdown.",
+      "New Candle School (/learn/candles): an interactive identifier (shape a candle, see what it's called) plus a catalogue of the six patterns the chart flags.",
+      "Fixed the chart tools on scenarios: the Guppy ribbons and EMA overlay were stuck gray / missing on short scenario charts because the long EMAs couldn't warm up — a best-effort EMA now renders and colors them correctly. The ribbon is one solid color, and the colorblind palette switched to blue/red.",
+      "The tutorial's leverage step was rewritten in plainer language with a dedicated liquidation step (a shrinking leverage-ladder visual), the Practice walkthrough now draws entry/stop/TP on the chart as it narrates and is replayable, and thesis + invalidation grading got stricter (structure AND a specific price now required for full marks). Also: candle precision for low-priced coins, and background history auto-loading on Paper Trading.",
+    ],
+  },
+  {
     version: "5.9.3",
     date: "2026-06-04",
     title: "Fix: Super Guppy colours now follow the obvious control",
