@@ -1123,23 +1123,41 @@ export function markScenarioSeen(scenarioId: string, now: number = Date.now()): 
   }
 }
 
+// v5.12.6 — Export is now a full snapshot of exactly the keys "Reset all"
+// clears, so "back it up / restore on another browser" is actually true (the
+// old payload only carried attempts/quiz/diagnostic/drill and silently
+// dropped streak, goal, bookmarks, curriculum, defaults, indicator + colour
+// prefs, Chris's Guppy, and portfolio/live sessions). Two exceptions: the
+// Anthropic and OpenAI API keys are deliberately excluded — we never want to
+// write a user's secret into a JSON file they might share. Stored as a raw
+// key→value map so a future localStorage-backed setting is captured
+// automatically, with no per-field plumbing to forget.
+const SECRET_KEYS: readonly string[] = [AI_KEY_KEY, OPENAI_KEY_KEY];
+const EXPORT_KEYS: readonly string[] = ALL_KEYS.filter(
+  (k) => !SECRET_KEYS.includes(k)
+);
+
 export type ExportPayload = {
   version: string;
   exportedAt: number;
-  attempts: Attempt[];
-  quizAttempts: QuizAttempt[];
-  diagnostic: DiagnosticResult | null;
-  activeDrill: ActiveDrill | null;
+  format: "snapshot-v1";
+  // Raw localStorage values keyed by their storage key. API keys excluded.
+  data: Record<string, string>;
 };
 
 export function exportAllData(): ExportPayload {
+  const data: Record<string, string> = {};
+  if (isBrowser()) {
+    for (const k of EXPORT_KEYS) {
+      const v = window.localStorage.getItem(k);
+      if (v != null) data[k] = v;
+    }
+  }
   return {
     version: SCORING_VERSION,
     exportedAt: Date.now(),
-    attempts: listAttempts(),
-    quizAttempts: listQuizAttempts(),
-    diagnostic: getDiagnostic(),
-    activeDrill: getActiveDrill(),
+    format: "snapshot-v1",
+    data,
   };
 }
 
@@ -1154,6 +1172,25 @@ export type ImportResult = {
   error?: string;
 };
 
+// Pre-v5.12.6 backups were a typed object with these four fields at the top
+// level. We still read them so older exports keep importing cleanly.
+type LegacyExportPayload = {
+  attempts: Attempt[];
+  quizAttempts: QuizAttempt[];
+  diagnostic: DiagnosticResult | null;
+  activeDrill: ActiveDrill | null;
+};
+
+function countJsonArray(raw: unknown): number {
+  if (typeof raw !== "string") return 0;
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function importAllData(json: string): ImportResult {
   if (!isBrowser()) return { ok: false, error: "Storage not available." };
   let parsed: unknown;
@@ -1165,9 +1202,38 @@ export function importAllData(json: string): ImportResult {
   if (!parsed || typeof parsed !== "object") {
     return { ok: false, error: "Payload is not an object." };
   }
-  const p = parsed as Partial<ExportPayload>;
+  const obj = parsed as Record<string, unknown>;
+
+  // New snapshot format: restore every known key present in the file. Keys
+  // absent from the file are left untouched rather than wiped, so importing a
+  // partial or older snapshot can't silently destroy unrelated local data.
+  if (obj.format === "snapshot-v1" && obj.data && typeof obj.data === "object") {
+    const data = obj.data as Record<string, unknown>;
+    for (const k of EXPORT_KEYS) {
+      const v = data[k];
+      if (typeof v === "string") {
+        try {
+          window.localStorage.setItem(k, v);
+        } catch {
+          // ignore quota
+        }
+      }
+    }
+    return {
+      ok: true,
+      imported: {
+        attempts: countJsonArray(data[KEY]),
+        quizAttempts: countJsonArray(data[QUIZ_KEY]),
+        diagnostic: typeof data[DIAGNOSTIC_KEY] === "string",
+        activeDrill: typeof data[ACTIVE_DRILL_KEY] === "string",
+      },
+    };
+  }
+
+  // Legacy typed format (pre-v5.12.6).
+  const p = parsed as Partial<LegacyExportPayload>;
   if (!Array.isArray(p.attempts) || !Array.isArray(p.quizAttempts)) {
-    return { ok: false, error: "Missing required fields (attempts, quizAttempts)." };
+    return { ok: false, error: "Unrecognised backup file." };
   }
   window.localStorage.setItem(KEY, JSON.stringify(p.attempts));
   window.localStorage.setItem(QUIZ_KEY, JSON.stringify(p.quizAttempts));

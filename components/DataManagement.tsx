@@ -233,7 +233,7 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
     e.target.value = ""; // allow same file again
     if (
       !confirm(
-        "Importing will overwrite your current local data with the file's contents. Continue?"
+        "Importing overwrites your matching local data with the file's contents (anything the file doesn't contain is left as-is). Continue?"
       )
     ) {
       return;
@@ -267,8 +267,10 @@ export default function DataManagement({ defaultOpen = false }: { defaultOpen?: 
       {open && (
         <div className="border-t border-line p-4 space-y-3">
           <p className="text-xs text-muted">
-            Everything lives in your browser's localStorage. Export to back it up; import to
-            restore on another browser. Clearing is not reversible.
+            Everything lives in your browser's localStorage. Export saves a full snapshot of your
+            progress and settings &mdash; journal, streak, goal, bookmarks, defaults, chart prefs and
+            sessions &mdash; to a JSON file (your API keys are never included). Import restores it here
+            or on another browser. Clearing is not reversible.
           </p>
 
           {/* v2.1 Phase 3 — daily goal control */}
